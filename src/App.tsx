@@ -172,7 +172,7 @@ export default function App() {
           <a className="icon-button shortcut-character" href="https://mungermodels.com" target="_blank" rel="noopener noreferrer" aria-label="Munger Models" title="Munger Models">芒</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/daily-calorie-tracker/" target="_blank" rel="noopener noreferrer" aria-label="每日卡路里" title="每日卡路里">饮</a>
           <a className="icon-button shortcut-character" href="https://gogoscrum.com" target="_blank" rel="noopener noreferrer" aria-label="GoGoScrum" title="GoGoScrum">项</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/xhs-trend-radar/" target="_blank" rel="noopener noreferrer" aria-label="小红书趋势雷达" title="小红书趋势雷达">红</a>
+          <a className="icon-button shortcut-character" href="https://dapanyuntu.com" target="_blank" rel="noopener noreferrer" aria-label="DaPanYunTu" title="DaPanYunTu">盘</a>
           <button className="icon-button" aria-label={actualTheme === 'dark' ? '切换白天模式' : '切换夜晚模式'} onClick={toggleTheme}>
             {actualTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>

@@ -45,13 +45,18 @@ test.each([
   ['Munger Models', 'https://mungermodels.com'],
   ['每日卡路里', 'https://sange1022.github.io/daily-calorie-tracker/'],
   ['GoGoScrum', 'https://gogoscrum.com'],
-  ['小红书趋势雷达', 'https://sange1022.github.io/xhs-trend-radar/'],
+  ['DaPanYunTu', 'https://dapanyuntu.com'],
 ])('opens the %s shortcut safely in a new tab', (name, href) => {
   render(<App />)
   const link = screen.getByRole('link', { name })
   expect(link).toHaveAttribute('href', href)
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+})
+
+test('does not show the removed xhs trend radar shortcut', () => {
+  render(<App />)
+  expect(screen.queryByRole('link', { name: '小红书趋势雷达' })).not.toBeInTheDocument()
 })
 
 test('moves projects up and down and exposes delete directly', async () => {
