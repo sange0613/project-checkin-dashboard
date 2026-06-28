@@ -1,0 +1,354 @@
+import {
+  type AppState,
+  type RandomCategory,
+  type SyncEntityKind,
+  type SyncSettingValue,
+  type SyncState,
+  type VersionStamp,
+} from './types'
+
+const BASELINE_STAMP: VersionStamp = { updatedAt: 0, updatedBy: '' }
+const ENTITY_KINDS: SyncEntityKind[] = ['projects', 'checkins', 'randomItems', 'randomResults', 'stageProjects']
+const CATEGORY_IDS: RandomCategory['id'][] = ['fitness', 'modeling', 'mind']
+
+type SyncEntity = SyncState[SyncEntityKind][number]
+type SyncSetting = SyncState['settings'][string]
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function stringValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function numberValue(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function stampFrom(value: Record<string, unknown>): VersionStamp {
+  return {
+    updatedAt: numberValue(value.updatedAt),
+    updatedBy: stringValue(value.updatedBy),
+  }
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize)
+  if (!isRecord(value)) return value
+
+  return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]),
+  )
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalize(value))
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
+function compareVersion(left: VersionStamp, right: VersionStamp): number {
+  if (left.updatedAt !== right.updatedAt) return left.updatedAt - right.updatedAt
+  const byDevice = compareText(left.updatedBy, right.updatedBy)
+  if (byDevice !== 0) return byDevice
+  return compareText(canonicalJson(left), canonicalJson(right))
+}
+
+function chooseLatest<T extends VersionStamp>(left: T | undefined, right: T | undefined): T | undefined {
+  if (!left) return right
+  if (!right) return left
+  const versionOrder = compareVersion(left, right)
+  if (versionOrder !== 0) return versionOrder > 0 ? left : right
+  return compareText(canonicalJson(left), canonicalJson(right)) >= 0 ? left : right
+}
+
+function emptySyncState(): SyncState {
+  return {
+    schemaVersion: 2,
+    projects: [],
+    checkins: [],
+    randomItems: [],
+    randomResults: [],
+    stageProjects: [],
+    settings: {},
+    tombstones: {
+      projects: {},
+      checkins: {},
+      randomItems: {},
+      randomResults: {},
+      stageProjects: {},
+    },
+  }
+}
+
+function normalizeCategoryId(value: unknown): RandomCategory['id'] | undefined {
+  return CATEGORY_IDS.find((id) => id === value)
+}
+
+function normalizeEntities(kind: SyncEntityKind, value: unknown): SyncEntity[] {
+  if (!Array.isArray(value)) return []
+
+  const entities: SyncEntity[] = []
+  for (const candidate of value) {
+    if (!isRecord(candidate)) continue
+    const id = stringValue(candidate.id)
+    if (!id) continue
+    const stamp = stampFrom(candidate)
+
+    if (kind === 'projects') {
+      entities.push({
+        id,
+        name: stringValue(candidate.name),
+        createdAt: stringValue(candidate.createdAt),
+        archived: candidate.archived === true,
+        order: numberValue(candidate.order),
+        ...stamp,
+      })
+    } else if (kind === 'checkins') {
+      const projectId = stringValue(candidate.projectId)
+      const dateKey = stringValue(candidate.dateKey)
+      if (projectId && dateKey) entities.push({ id, projectId, dateKey, ...stamp })
+    } else if (kind === 'randomItems') {
+      const categoryId = normalizeCategoryId(candidate.categoryId)
+      if (categoryId) entities.push({
+        id,
+        categoryId,
+        name: stringValue(candidate.name),
+        order: numberValue(candidate.order),
+        ...stamp,
+      })
+    } else if (kind === 'randomResults') {
+      const categoryId = normalizeCategoryId(candidate.categoryId)
+      const dateKey = stringValue(candidate.dateKey)
+      if (categoryId && dateKey) entities.push({
+        id,
+        dateKey,
+        categoryId,
+        itemId: stringValue(candidate.itemId),
+        name: stringValue(candidate.name),
+        ...stamp,
+      })
+    } else {
+      entities.push({
+        id,
+        name: stringValue(candidate.name),
+        stageIndex: numberValue(candidate.stageIndex),
+        createdAt: stringValue(candidate.createdAt),
+        ...stamp,
+      })
+    }
+  }
+
+  return mergeEntityArrays([], entities)
+}
+
+function normalizeSettingValue(value: unknown): SyncSettingValue | undefined {
+  if (typeof value === 'string' || typeof value === 'boolean') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return [...value]
+  return undefined
+}
+
+function normalizeSettings(value: unknown): SyncState['settings'] {
+  if (!isRecord(value)) return {}
+  const entries: [string, SyncSetting][] = []
+
+  for (const key of Object.keys(value).sort()) {
+    const candidate = value[key]
+    if (!isRecord(candidate)) continue
+    const settingValue = normalizeSettingValue(candidate.value)
+    if (settingValue !== undefined) entries.push([key, { value: settingValue, ...stampFrom(candidate) }])
+  }
+
+  return Object.fromEntries(entries)
+}
+
+function normalizeTombstones(value: unknown): SyncState['tombstones'] {
+  const result = emptySyncState().tombstones
+  if (!isRecord(value)) return result
+
+  for (const kind of ENTITY_KINDS) {
+    const candidates = value[kind]
+    if (!isRecord(candidates)) continue
+    result[kind] = Object.fromEntries(
+      Object.keys(candidates).sort().flatMap((id) => {
+        const candidate = candidates[id]
+        return isRecord(candidate) ? [[id, stampFrom(candidate)]] : []
+      }),
+    )
+  }
+  return result
+}
+
+export function normalizeSyncState(value: unknown): SyncState {
+  const source = isRecord(value) ? value : {}
+  return {
+    schemaVersion: 2,
+    projects: normalizeEntities('projects', source.projects) as SyncState['projects'],
+    checkins: normalizeEntities('checkins', source.checkins) as SyncState['checkins'],
+    randomItems: normalizeEntities('randomItems', source.randomItems) as SyncState['randomItems'],
+    randomResults: normalizeEntities('randomResults', source.randomResults) as SyncState['randomResults'],
+    stageProjects: normalizeEntities('stageProjects', source.stageProjects) as SyncState['stageProjects'],
+    settings: normalizeSettings(source.settings),
+    tombstones: normalizeTombstones(source.tombstones),
+  }
+}
+
+function setting(value: SyncSettingValue): SyncSetting {
+  return { value, ...BASELINE_STAMP }
+}
+
+export function createSyncStateFromAppState(state: AppState): SyncState {
+  const sync = emptySyncState()
+  sync.projects = state.projects.map((project, order) => ({ ...project, order, ...BASELINE_STAMP }))
+  sync.checkins = Object.entries(state.checkins).flatMap(([projectId, dates]) =>
+    dates.map((dateKey) => ({ id: `${projectId}:${dateKey}`, projectId, dateKey, ...BASELINE_STAMP })),
+  )
+  sync.randomItems = state.randomCategories.flatMap((category) =>
+    category.items.map((item, order) => ({ ...item, categoryId: category.id, order, ...BASELINE_STAMP })),
+  )
+  sync.randomResults = Object.entries(state.dailyRandomResults).flatMap(([dateKey, results]) =>
+    CATEGORY_IDS.flatMap((categoryId) => {
+      const result = results[categoryId]
+      return result ? [{
+        id: `${dateKey}:${categoryId}`,
+        dateKey,
+        categoryId,
+        ...result,
+        ...BASELINE_STAMP,
+      }] : []
+    }),
+  )
+  sync.stageProjects = state.stageProjects.map((project) => ({ ...project, ...BASELINE_STAMP }))
+  sync.settings = {
+    title: setting(state.title),
+    theme: setting(state.theme),
+    stageBoardTitle: setting(state.stageBoardTitle),
+    ...Object.fromEntries(state.stageLabels.map((label, index) => [`stageLabel:${index}`, setting(label)])),
+    ...Object.fromEntries(state.randomCategories.map((category) => [`categoryName:${category.id}`, setting(category.name)])),
+  }
+  return normalizeSyncState(sync)
+}
+
+function mergeEntityArrays<T extends { id: string } & VersionStamp>(left: T[], right: T[]): T[] {
+  const byId = new Map<string, T>()
+  for (const entity of [...left, ...right]) {
+    byId.set(entity.id, chooseLatest(byId.get(entity.id), entity) as T)
+  }
+  return [...byId.values()].sort((a, b) => compareText(a.id, b.id))
+}
+
+function mergeStampRecords(left: Record<string, VersionStamp>, right: Record<string, VersionStamp>): Record<string, VersionStamp> {
+  const result: Record<string, VersionStamp> = {}
+  for (const id of [...new Set([...Object.keys(left), ...Object.keys(right)])].sort()) {
+    result[id] = chooseLatest(left[id], right[id]) as VersionStamp
+  }
+  return result
+}
+
+function mergeSettingRecords(left: SyncState['settings'], right: SyncState['settings']): SyncState['settings'] {
+  const result: SyncState['settings'] = {}
+  for (const key of [...new Set([...Object.keys(left), ...Object.keys(right)])].sort()) {
+    result[key] = chooseLatest(left[key], right[key]) as SyncSetting
+  }
+  return result
+}
+
+function removeDeleted<T extends { id: string } & VersionStamp>(entities: T[], tombstones: Record<string, VersionStamp>): T[] {
+  return entities.filter((entity) => {
+    const tombstone = tombstones[entity.id]
+    return !tombstone || compareVersion(entity, tombstone) > 0
+  })
+}
+
+export function mergeSyncStates(left: SyncState, right: SyncState): SyncState {
+  const normalizedLeft = normalizeSyncState(left)
+  const normalizedRight = normalizeSyncState(right)
+  const tombstones = emptySyncState().tombstones
+  for (const kind of ENTITY_KINDS) {
+    tombstones[kind] = mergeStampRecords(normalizedLeft.tombstones[kind], normalizedRight.tombstones[kind])
+  }
+
+  return normalizeSyncState({
+    schemaVersion: 2,
+    projects: removeDeleted(mergeEntityArrays(normalizedLeft.projects, normalizedRight.projects), tombstones.projects),
+    checkins: removeDeleted(mergeEntityArrays(normalizedLeft.checkins, normalizedRight.checkins), tombstones.checkins),
+    randomItems: removeDeleted(mergeEntityArrays(normalizedLeft.randomItems, normalizedRight.randomItems), tombstones.randomItems),
+    randomResults: removeDeleted(mergeEntityArrays(normalizedLeft.randomResults, normalizedRight.randomResults), tombstones.randomResults),
+    stageProjects: removeDeleted(mergeEntityArrays(normalizedLeft.stageProjects, normalizedRight.stageProjects), tombstones.stageProjects),
+    settings: mergeSettingRecords(normalizedLeft.settings, normalizedRight.settings),
+    tombstones,
+  })
+}
+
+function settingString(sync: SyncState, key: string, fallback: string): string {
+  const value = sync.settings[key]?.value
+  return typeof value === 'string' ? value : fallback
+}
+
+export function applySyncStateToAppState(current: AppState, syncValue: SyncState): AppState {
+  const sync = normalizeSyncState(syncValue)
+  const projects = [...sync.projects]
+    .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
+    .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => project)
+  const checkins: AppState['checkins'] = {}
+  for (const { projectId, dateKey } of sync.checkins) {
+    checkins[projectId] = [...new Set([...(checkins[projectId] ?? []), dateKey])].sort()
+  }
+  const randomCategories = CATEGORY_IDS.map((categoryId) => {
+    const currentCategory = current.randomCategories.find(({ id }) => id === categoryId)
+    const items = sync.randomItems
+      .filter((item) => item.categoryId === categoryId)
+      .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
+      .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, categoryId: _categoryId, ...item }) => item)
+    return {
+      id: categoryId,
+      name: settingString(sync, `categoryName:${categoryId}`, currentCategory?.name ?? categoryId),
+      items,
+    }
+  })
+  const dailyRandomResults: AppState['dailyRandomResults'] = {}
+  for (const { dateKey, categoryId, itemId, name } of sync.randomResults) {
+    dailyRandomResults[dateKey] = { ...dailyRandomResults[dateKey], [categoryId]: { itemId, name } }
+  }
+  const stageProjects = sync.stageProjects.map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, ...project }) => project)
+  const stageLabels = Object.keys(sync.settings)
+    .flatMap((key) => {
+      const match = /^stageLabel:(\d+)$/.exec(key)
+      return match ? [Number(match[1])] : []
+    })
+    .sort((a, b) => a - b)
+    .map((index) => settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''))
+
+  return {
+    ...current,
+    title: settingString(sync, 'title', current.title),
+    projects,
+    checkins,
+    randomCategories,
+    dailyRandomResults,
+    stageProjects,
+    stageBoardTitle: settingString(sync, 'stageBoardTitle', current.stageBoardTitle),
+    stageLabels: stageLabels.length ? stageLabels : current.stageLabels,
+    theme: settingString(sync, 'theme', current.theme) as AppState['theme'],
+    view: current.view,
+    anchorDate: current.anchorDate,
+  }
+}
+
+export function syncStatesEqual(left: SyncState, right: SyncState): boolean {
+  return canonicalJson(normalizeSyncState(left)) === canonicalJson(normalizeSyncState(right))
+}
+
+export function latestSyncTimestamp(syncValue: SyncState): number {
+  const sync = normalizeSyncState(syncValue)
+  const timestamps = [
+    ...ENTITY_KINDS.flatMap((kind) => sync[kind].map(({ updatedAt }) => updatedAt)),
+    ...Object.values(sync.settings).map(({ updatedAt }) => updatedAt),
+    ...ENTITY_KINDS.flatMap((kind) => Object.values(sync.tombstones[kind]).map(({ updatedAt }) => updatedAt)),
+  ]
+  return Math.max(0, ...timestamps)
+}

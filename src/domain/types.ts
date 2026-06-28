@@ -31,6 +31,22 @@ export type StageProject = {
   createdAt: string
 }
 
+export type VersionStamp = { updatedAt: number; updatedBy: string }
+export type Versioned<T> = T & VersionStamp
+export type SyncEntityKind = 'projects' | 'checkins' | 'randomItems' | 'randomResults' | 'stageProjects'
+export type SyncSettingValue = string | number | boolean | string[]
+
+export type SyncState = {
+  schemaVersion: 2
+  projects: Versioned<{ id: string; name: string; createdAt: string; archived: boolean; order: number }>[]
+  checkins: Versioned<{ id: string; projectId: string; dateKey: string }>[]
+  randomItems: Versioned<{ id: string; categoryId: RandomCategory['id']; name: string; order: number }>[]
+  randomResults: Versioned<{ id: string; dateKey: string; categoryId: RandomCategory['id']; itemId: string; name: string }>[]
+  stageProjects: Versioned<StageProject>[]
+  settings: Record<string, { value: SyncSettingValue } & VersionStamp>
+  tombstones: Record<SyncEntityKind, Record<string, VersionStamp>>
+}
+
 export type AppState = {
   title: string
   view: ViewMode
