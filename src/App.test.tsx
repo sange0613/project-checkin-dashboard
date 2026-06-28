@@ -40,6 +40,14 @@ test('opens the English copywork shortcut safely in a new tab', () => {
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
 
+test('opens the GitHub profile shortcut safely in a new tab', () => {
+  render(<App />)
+  const link = screen.getByRole('link', { name: 'GitHub 主页' })
+  expect(link).toHaveAttribute('href', 'https://github.com/sange1022')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+})
+
 test.each([
   ['Learn Buffett', 'https://learnbuffett.com'],
   ['Munger Models', 'https://mungermodels.com'],
