@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   applySyncStateToAppState,
   createSyncStateFromAppState,
+  latestSyncTimestamp,
   mergeSyncStates,
+  normalizeSyncState,
+  syncStatesEqual,
 } from './cloudSync'
 import { createInitialState, type AppState } from './types'
 
@@ -27,6 +30,107 @@ describe('canonical cloud sync merge', () => {
 
     expect(visible.projects.map(({ id }) => id)).toEqual(['project-a', 'project-b'])
     expect(visible.projects.map(({ name }) => name)).toEqual(['同名项目', '同名项目'])
+  })
+
+  it('normalizes stage indices to integers within the board range', () => {
+    const sync = normalizeSyncState({
+      stageProjects: [
+        { id: 'low', name: '低', stageIndex: -2, createdAt: '', updatedAt: 0, updatedBy: '' },
+        { id: 'high', name: '高', stageIndex: 20, createdAt: '', updatedAt: 0, updatedBy: '' },
+        { id: 'fraction', name: '小数', stageIndex: 1.5, createdAt: '', updatedAt: 0, updatedBy: '' },
+      ],
+    })
+
+    expect(sync.stageProjects.map(({ stageIndex }) => stageIndex)).toEqual([0, 14, 0])
+  })
+
+  it('materializes all stage label positions without compacting sparse settings', () => {
+    const current = createInitialState()
+    const sync = normalizeSyncState({
+      settings: {
+        'stageLabel:2': { value: '云端第三阶段', updatedAt: 1, updatedBy: 'device-a' },
+      },
+    })
+
+    const visible = applySyncStateToAppState(current, sync)
+
+    expect(visible.stageLabels).toHaveLength(15)
+    expect(visible.stageLabels[0]).toBe(current.stageLabels[0])
+    expect(visible.stageLabels[1]).toBe(current.stageLabels[1])
+    expect(visible.stageLabels[2]).toBe('云端第三阶段')
+    expect(visible.stageLabels[14]).toBe(current.stageLabels[14])
+  })
+
+  it('keeps the current theme when a sync setting is invalid', () => {
+    const current = state({ theme: 'dark' })
+    const sync = normalizeSyncState({
+      settings: { theme: { value: 'neon', updatedAt: 1, updatedBy: 'device-a' } },
+    })
+
+    expect(applySyncStateToAppState(current, sync).theme).toBe('dark')
+  })
+
+  it('safely materializes __proto__ check-in and date keys as own properties', () => {
+    const sync = normalizeSyncState({
+      checkins: [{
+        id: '__proto__:2026-06-22',
+        projectId: '__proto__',
+        dateKey: '2026-06-22',
+        updatedAt: 0,
+        updatedBy: '',
+      }],
+      randomResults: [{
+        id: '__proto__:fitness',
+        dateKey: '__proto__',
+        categoryId: 'fitness',
+        itemId: 'safe-item',
+        name: '安全结果',
+        updatedAt: 0,
+        updatedBy: '',
+      }],
+    })
+
+    const visible = applySyncStateToAppState(createInitialState(), sync)
+
+    expect(Object.getPrototypeOf(visible.checkins)).toBe(Object.prototype)
+    expect(Object.hasOwn(visible.checkins, '__proto__')).toBe(true)
+    expect(visible.checkins.__proto__).toEqual(['2026-06-22'])
+    expect(Object.getPrototypeOf(visible.dailyRandomResults)).toBe(Object.prototype)
+    expect(Object.hasOwn(visible.dailyRandomResults, '__proto__')).toBe(true)
+    expect(visible.dailyRandomResults.__proto__).toEqual({
+      fitness: { itemId: 'safe-item', name: '安全结果' },
+    })
+  })
+
+  it('compares normalized states and reports the latest entity, setting, or tombstone timestamp', () => {
+    const left = normalizeSyncState({
+      projects: [
+        { id: 'b', name: '乙', createdAt: '', archived: false, order: 1, updatedAt: 3, updatedBy: 'a' },
+        { id: 'a', name: '甲', createdAt: '', archived: false, order: 0, updatedAt: 2, updatedBy: 'a' },
+      ],
+      settings: { title: { value: '标题', updatedAt: 8, updatedBy: 'a' } },
+      tombstones: { checkins: { removed: { updatedAt: 13, updatedBy: 'a' } } },
+    })
+    const right = normalizeSyncState({
+      projects: [...left.projects].reverse(),
+      settings: left.settings,
+      tombstones: left.tombstones,
+    })
+
+    expect(syncStatesEqual(left, right)).toBe(true)
+    expect(latestSyncTimestamp(left)).toBe(13)
+  })
+
+  it('uses canonical JSON to deterministically break equal version-stamp ties', () => {
+    const left = normalizeSyncState({
+      projects: [{ id: 'same', name: '甲', createdAt: '', archived: false, order: 0, updatedAt: 5, updatedBy: 'same' }],
+    })
+    const right = normalizeSyncState({
+      projects: [{ id: 'same', name: '乙', createdAt: '', archived: false, order: 0, updatedAt: 5, updatedBy: 'same' }],
+    })
+
+    expect(mergeSyncStates(left, right)).toEqual(mergeSyncStates(right, left))
+    expect(mergeSyncStates(left, right).projects[0].name).toBe('甲')
   })
 
   it('unions unique check-ins, prompt items, daily results, and stage projects', () => {

@@ -26,6 +26,11 @@ function numberValue(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+function stageIndexValue(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return 0
+  return Math.min(14, Math.max(0, value))
+}
+
 function stampFrom(value: Record<string, unknown>): VersionStamp {
   return {
     updatedAt: numberValue(value.updatedAt),
@@ -135,7 +140,7 @@ function normalizeEntities(kind: SyncEntityKind, value: unknown): SyncEntity[] {
       entities.push({
         id,
         name: stringValue(candidate.name),
-        stageIndex: numberValue(candidate.stageIndex),
+        stageIndex: stageIndexValue(candidate.stageIndex),
         createdAt: stringValue(candidate.createdAt),
         ...stamp,
       })
@@ -242,19 +247,19 @@ function mergeEntityArrays<T extends { id: string } & VersionStamp>(left: T[], r
 }
 
 function mergeStampRecords(left: Record<string, VersionStamp>, right: Record<string, VersionStamp>): Record<string, VersionStamp> {
-  const result: Record<string, VersionStamp> = {}
-  for (const id of [...new Set([...Object.keys(left), ...Object.keys(right)])].sort()) {
-    result[id] = chooseLatest(left[id], right[id]) as VersionStamp
-  }
-  return result
+  return Object.fromEntries(
+    [...new Set([...Object.keys(left), ...Object.keys(right)])]
+      .sort()
+      .map((id) => [id, chooseLatest(left[id], right[id]) as VersionStamp]),
+  )
 }
 
 function mergeSettingRecords(left: SyncState['settings'], right: SyncState['settings']): SyncState['settings'] {
-  const result: SyncState['settings'] = {}
-  for (const key of [...new Set([...Object.keys(left), ...Object.keys(right)])].sort()) {
-    result[key] = chooseLatest(left[key], right[key]) as SyncSetting
-  }
-  return result
+  return Object.fromEntries(
+    [...new Set([...Object.keys(left), ...Object.keys(right)])]
+      .sort()
+      .map((key) => [key, chooseLatest(left[key], right[key]) as SyncSetting]),
+  )
 }
 
 function removeDeleted<T extends { id: string } & VersionStamp>(entities: T[], tombstones: Record<string, VersionStamp>): T[] {
@@ -289,15 +294,25 @@ function settingString(sync: SyncState, key: string, fallback: string): string {
   return typeof value === 'string' ? value : fallback
 }
 
+function themeSetting(sync: SyncState, fallback: AppState['theme']): AppState['theme'] {
+  const value = sync.settings.theme?.value
+  return value === 'system' || value === 'light' || value === 'dark' ? value : fallback
+}
+
 export function applySyncStateToAppState(current: AppState, syncValue: SyncState): AppState {
   const sync = normalizeSyncState(syncValue)
   const projects = [...sync.projects]
     .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
     .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => project)
-  const checkins: AppState['checkins'] = {}
+  const checkinsByProject = new Map<string, Set<string>>()
   for (const { projectId, dateKey } of sync.checkins) {
-    checkins[projectId] = [...new Set([...(checkins[projectId] ?? []), dateKey])].sort()
+    const dates = checkinsByProject.get(projectId) ?? new Set<string>()
+    dates.add(dateKey)
+    checkinsByProject.set(projectId, dates)
   }
+  const checkins = Object.fromEntries(
+    [...checkinsByProject].map(([projectId, dates]) => [projectId, [...dates].sort()]),
+  ) as AppState['checkins']
   const randomCategories = CATEGORY_IDS.map((categoryId) => {
     const currentCategory = current.randomCategories.find(({ id }) => id === categoryId)
     const items = sync.randomItems
@@ -310,18 +325,18 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
       items,
     }
   })
-  const dailyRandomResults: AppState['dailyRandomResults'] = {}
+  const resultsByDate = new Map<string, AppState['dailyRandomResults'][string]>()
   for (const { dateKey, categoryId, itemId, name } of sync.randomResults) {
-    dailyRandomResults[dateKey] = { ...dailyRandomResults[dateKey], [categoryId]: { itemId, name } }
-  }
-  const stageProjects = sync.stageProjects.map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, ...project }) => project)
-  const stageLabels = Object.keys(sync.settings)
-    .flatMap((key) => {
-      const match = /^stageLabel:(\d+)$/.exec(key)
-      return match ? [Number(match[1])] : []
+    resultsByDate.set(dateKey, {
+      ...resultsByDate.get(dateKey),
+      [categoryId]: { itemId, name },
     })
-    .sort((a, b) => a - b)
-    .map((index) => settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''))
+  }
+  const dailyRandomResults = Object.fromEntries(resultsByDate) as AppState['dailyRandomResults']
+  const stageProjects = sync.stageProjects.map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, ...project }) => project)
+  const stageLabels = Array.from({ length: 15 }, (_, index) =>
+    settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''),
+  )
 
   return {
     ...current,
@@ -332,8 +347,8 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     dailyRandomResults,
     stageProjects,
     stageBoardTitle: settingString(sync, 'stageBoardTitle', current.stageBoardTitle),
-    stageLabels: stageLabels.length ? stageLabels : current.stageLabels,
-    theme: settingString(sync, 'theme', current.theme) as AppState['theme'],
+    stageLabels,
+    theme: themeSetting(sync, current.theme),
     view: current.view,
     anchorDate: current.anchorDate,
   }
