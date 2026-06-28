@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:standalone": "npm run build && node scripts/build-standalone.mjs",
     "test": "vitest",
+    "test:standalone": "node --test scripts/build-standalone.node-test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
