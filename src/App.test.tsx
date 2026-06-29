@@ -54,6 +54,7 @@ test.each([
   ['每日卡路里', 'https://sange1022.github.io/daily-calorie-tracker/'],
   ['GoGoScrum', 'https://gogoscrum.com'],
   ['DaPanYunTu', 'https://dapanyuntu.com'],
+  ['字间排版', 'https://sange1022.github.io/zijian-text-layout/'],
 ])('opens the %s shortcut safely in a new tab', (name, href) => {
   render(<App />)
   const link = screen.getByRole('link', { name })
