@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
@@ -26,9 +26,10 @@ test('edits the title and creates a project', async () => {
 test('switches between daily weekly and monthly views', async () => {
   const user = userEvent.setup()
   render(<App />)
-  await user.click(screen.getByRole('button', { name: '每周' }))
+  const timeViews = within(screen.getByRole('navigation', { name: '时间视图' }))
+  await user.click(timeViews.getByRole('button', { name: '每周' }))
   expect(screen.getAllByTestId('period-header')).toHaveLength(12)
-  await user.click(screen.getByRole('button', { name: '每月' }))
+  await user.click(timeViews.getByRole('button', { name: '每月' }))
   expect(screen.getAllByTestId('period-header')).toHaveLength(12)
 })
 
@@ -91,4 +92,14 @@ test('shows quiet import and export controls in the footer', () => {
   render(<App />)
   expect(screen.getByRole('button', { name: '导入数据' })).toBeVisible()
   expect(screen.getByRole('button', { name: '导出数据' })).toBeVisible()
+})
+
+test('shows the activity heatmap after the bottom management panels', () => {
+  render(<App />)
+  const panels = screen.getByText('管理进度项目').closest('.bottom-panels')
+  const activity = screen.getByRole('region', { name: '打卡活动' })
+
+  expect(panels).not.toBeNull()
+  if (!panels) throw new Error('Bottom panels are missing')
+  expect(panels.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })

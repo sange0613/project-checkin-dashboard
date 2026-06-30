@@ -7,6 +7,7 @@ import { DailyRandomPanel } from './components/DailyRandomPanel'
 import { RandomPromptManager } from './components/RandomPromptManager'
 import { RandomHistory } from './components/RandomHistory'
 import { ProjectStageBoard, StageProjectManager } from './components/ProjectStageBoard'
+import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
 import type { AppState, Project, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
 import { createStageProject } from './domain/projectStages'
@@ -246,6 +247,7 @@ export default function App() {
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
           <StageProjectManager projects={state.stageProjects} onAdd={addStageProject} onRename={renameStageProject} onDelete={deleteStageProject} />
         </div>
+        <CheckinActivityHeatmap checkins={state.checkins} today={today} />
       </section>
 
       <ProjectDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={createProject} />
