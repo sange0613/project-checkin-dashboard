@@ -175,6 +175,7 @@ export default function App() {
           <a className="icon-button shortcut-character" href="https://gogoscrum.com" target="_blank" rel="noopener noreferrer" aria-label="GoGoScrum" title="GoGoScrum">项</a>
           <a className="icon-button shortcut-character" href="https://dapanyuntu.com" target="_blank" rel="noopener noreferrer" aria-label="DaPanYunTu" title="DaPanYunTu">盘</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
+          <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-wechat-editor/" target="_blank" rel="noopener noreferrer" aria-label="公众号编辑器" title="公众号编辑器">公</a>
           <a className="icon-button" href="https://github.com/sange1022" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页">
             <Github size={17} />
           </a>
