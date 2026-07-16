@@ -52,18 +52,35 @@ test('opens the GitHub profile shortcut safely in a new tab', () => {
 test.each([
   ['Learn Buffett', 'https://learnbuffett.com'],
   ['Munger Models', 'https://mungermodels.com'],
-  ['每日卡路里', 'https://sange1022.github.io/daily-calorie-tracker/'],
   ['GoGoScrum', 'https://gogoscrum.com'],
-  ['字间排版', 'https://sange1022.github.io/zijian-text-layout/'],
   ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
-  ['清单打卡', 'https://sange1022.github.io/qingdan-checklist/'],
 ])('opens the %s shortcut safely in a new tab', (name, href) => {
   render(<App />)
   const link = screen.getByRole('link', { name })
   expect(link).toHaveAttribute('href', href)
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+})
+
+test('opens and switches the integrated daily checklist and layout tools', async () => {
+  const user = userEvent.setup()
+  render(<App />)
+
+  await user.click(screen.getByRole('button', { name: '每日卡路里' }))
+  const tools = screen.getByRole('region', { name: '综合工具' })
+  expect(tools).toBeVisible()
+  expect(within(tools).getByTitle('每日卡路里')).toHaveAttribute('src', 'https://sange1022.github.io/daily-calorie-tracker/')
+
+  await user.click(screen.getByRole('button', { name: '清单打卡' }))
+  expect(within(tools).getByTitle('清单打卡')).toHaveAttribute('src', 'https://sange1022.github.io/qingdan-checklist/')
+  expect(within(tools).getByTitle('每日卡路里')).not.toBeVisible()
+
+  await user.click(screen.getByRole('button', { name: '字间排版' }))
+  expect(within(tools).getByTitle('字间排版')).toHaveAttribute('src', 'https://sange1022.github.io/zijian-text-layout/')
+  await user.click(screen.getByRole('button', { name: '关闭综合工具' }))
+  expect(screen.queryByRole('region', { name: '综合工具' })).not.toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '打卡活动' })).toBeVisible()
 })
 
 test('does not show the removed xhs trend radar shortcut', () => {
@@ -104,4 +121,13 @@ test('shows the activity heatmap after the bottom management panels', () => {
   expect(panels).not.toBeNull()
   if (!panels) throw new Error('Bottom panels are missing')
   expect(panels.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('shows one-code sync for the dashboard and integrated tools at the bottom', () => {
+  render(<App />)
+  const sync = screen.getByRole('region', { name: '数据同步' })
+  expect(within(sync).getByText('本页面全部数据')).toBeVisible()
+  expect(within(sync).getByRole('textbox', { name: '同步码' })).toBeVisible()
+  expect(within(sync).getByRole('button', { name: '连接' })).toBeVisible()
+  expect(within(sync).getByRole('button', { name: '新建同步码' })).toBeVisible()
 })

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, ChevronLeft, ChevronRight, Download, Github, Moon, Plus, Search, Sun, Upload, X } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Download, ExternalLink, Github, Moon, Plus, Search, Sun, Upload, X } from 'lucide-react'
 import { EditableText } from './components/EditableText'
 import { ProjectDialog } from './components/ProjectDialog'
 import { ProjectGrid } from './components/ProjectGrid'
@@ -8,14 +8,79 @@ import { RandomPromptManager } from './components/RandomPromptManager'
 import { RandomHistory } from './components/RandomHistory'
 import { ProjectStageBoard, StageProjectManager } from './components/ProjectStageBoard'
 import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
+import { SuiteSyncPanel } from './components/SuiteSyncPanel'
 import type { AppState, Project, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
 import { createStageProject } from './domain/projectStages'
 import { exportState, importState } from './storage/dataTransfer'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
+import { useSuiteSync } from './hooks/useSuiteSync'
 import './styles.css'
 
 const repository = createLocalCheckinRepository(window.localStorage)
+
+const integratedTools = [
+  { id: 'daily', label: '饮', name: '每日卡路里', url: 'https://sange1022.github.io/daily-calorie-tracker/' },
+  { id: 'checklist', label: '清', name: '清单打卡', url: 'https://sange1022.github.io/qingdan-checklist/' },
+  { id: 'layout', label: '字', name: '字间排版', url: 'https://sange1022.github.io/zijian-text-layout/' },
+] as const
+
+type IntegratedToolId = typeof integratedTools[number]['id']
+
+type IntegratedToolWorkspaceProps = {
+  activeToolId: IntegratedToolId
+  loadedToolIds: IntegratedToolId[]
+  dataRevision: number
+  onSelect: (toolId: IntegratedToolId) => void
+  onClose: () => void
+}
+
+function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, onSelect, onClose }: IntegratedToolWorkspaceProps) {
+  const activeTool = integratedTools.find((tool) => tool.id === activeToolId) ?? integratedTools[0]
+
+  return (
+    <section className="integrated-workspace" aria-label="综合工具">
+      <header className="integrated-toolbar">
+        <nav className="integrated-tabs" aria-label="综合工具切换">
+          {integratedTools.map((tool) => (
+            <button
+              type="button"
+              key={`${tool.id}-${dataRevision}`}
+              className={tool.id === activeToolId ? 'active' : ''}
+              aria-pressed={tool.id === activeToolId}
+              onClick={() => onSelect(tool.id)}
+            >
+              <span>{tool.label}</span>{tool.name}
+            </button>
+          ))}
+        </nav>
+        <div className="integrated-toolbar-actions">
+          <a className="icon-button" href={activeTool.url} target="_blank" rel="noopener noreferrer" aria-label={`在新标签页打开${activeTool.name}`} title="在新标签页打开">
+            <ExternalLink size={16} />
+          </a>
+          <button type="button" className="icon-button" aria-label="关闭综合工具" title="返回项目进度" onClick={onClose}>
+            <X size={17} />
+          </button>
+        </div>
+      </header>
+      <div className="integrated-frame-stack">
+        {loadedToolIds.map((toolId) => {
+          const tool = integratedTools.find((item) => item.id === toolId)
+          if (!tool) return null
+          return (
+            <iframe
+              key={tool.id}
+              className="integrated-frame"
+              src={tool.url}
+              title={tool.name}
+              hidden={tool.id !== activeToolId}
+            />
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
@@ -27,7 +92,10 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [transferMessage, setTransferMessage] = useState('')
+  const [activeToolId, setActiveToolId] = useState<IntegratedToolId | null>(null)
+  const [loadedToolIds, setLoadedToolIds] = useState<IntegratedToolId[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
+  const suiteSync = useSuiteSync(state, setState)
   const today = useMemo(() => new Date(), [])
   const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
   const actualTheme = state.theme === 'system' ? (systemDark ? 'dark' : 'light') : state.theme
@@ -122,6 +190,10 @@ export default function App() {
     stageLabels: current.stageLabels.map((currentLabel, currentIndex) => currentIndex === index ? label : currentLabel),
   }))
   const toggleTheme = () => update((current) => ({ ...current, theme: actualTheme === 'dark' ? 'light' : 'dark' }))
+  const openIntegratedTool = (toolId: IntegratedToolId) => {
+    setLoadedToolIds((current) => current.includes(toolId) ? current : [...current, toolId])
+    setActiveToolId(toolId)
+  }
 
   const downloadBackup = () => {
     const blob = new Blob([exportState(state)], { type: 'application/json' })
@@ -171,12 +243,12 @@ export default function App() {
           </a>
           <a className="icon-button shortcut-character" href="https://learnbuffett.com" target="_blank" rel="noopener noreferrer" aria-label="Learn Buffett" title="Learn Buffett">巴</a>
           <a className="icon-button shortcut-character" href="https://mungermodels.com" target="_blank" rel="noopener noreferrer" aria-label="Munger Models" title="Munger Models">芒</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/daily-calorie-tracker/" target="_blank" rel="noopener noreferrer" aria-label="每日卡路里" title="每日卡路里">饮</a>
+          <button type="button" className="icon-button shortcut-character" aria-label="每日卡路里" title="每日卡路里" onClick={() => openIntegratedTool('daily')}>饮</button>
           <a className="icon-button shortcut-character" href="https://gogoscrum.com" target="_blank" rel="noopener noreferrer" aria-label="GoGoScrum" title="GoGoScrum">项</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
+          <button type="button" className="icon-button shortcut-character" aria-label="字间排版" title="字间排版" onClick={() => openIntegratedTool('layout')}>字</button>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-wechat-editor/" target="_blank" rel="noopener noreferrer" aria-label="公众号编辑器" title="公众号编辑器">公</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-image-collage/" target="_blank" rel="noopener noreferrer" aria-label="图片拼贴" title="图片拼贴">拼</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/qingdan-checklist/" target="_blank" rel="noopener noreferrer" aria-label="清单打卡" title="清单打卡">清</a>
+          <button type="button" className="icon-button shortcut-character" aria-label="清单打卡" title="清单打卡" onClick={() => openIntegratedTool('checklist')}>清</button>
           <a className="icon-button" href="https://github.com/sange1022" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页">
             <Github size={17} />
           </a>
@@ -187,9 +259,19 @@ export default function App() {
           <button className="new-project-button" onClick={() => setDialogOpen(true)}><Plus size={16} />新项目</button>
         </div>
       </header>
-      <DailyRandomPanel categories={state.randomCategories} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
+      {activeToolId ? (
+        <IntegratedToolWorkspace
+          activeToolId={activeToolId}
+          loadedToolIds={loadedToolIds}
+          dataRevision={suiteSync.toolDataRevision}
+          onSelect={openIntegratedTool}
+          onClose={() => setActiveToolId(null)}
+        />
+      ) : (
+        <>
+          <DailyRandomPanel categories={state.randomCategories} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
 
-      <section className="workspace">
+          <section className="workspace">
         {searchOpen && (
           <div className="search-bar">
             <Search size={16} />
@@ -250,7 +332,19 @@ export default function App() {
           <StageProjectManager projects={state.stageProjects} onAdd={addStageProject} onRename={renameStageProject} onDelete={deleteStageProject} />
         </div>
         <CheckinActivityHeatmap checkins={state.checkins} today={today} />
+        <SuiteSyncPanel
+          code={suiteSync.codeInput}
+          connected={Boolean(suiteSync.connectedCode)}
+          status={suiteSync.status}
+          message={suiteSync.message}
+          onCodeChange={suiteSync.setCodeInput}
+          onConnect={() => suiteSync.connect()}
+          onCreate={suiteSync.createAndConnect}
+          onDisconnect={suiteSync.disconnect}
+        />
       </section>
+        </>
+      )}
 
       <ProjectDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={createProject} />
     </main>
