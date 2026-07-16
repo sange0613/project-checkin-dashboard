@@ -200,13 +200,17 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .activity-tooltip.align-end { transform: translateX(calc(-100% + var(--activity-size) + 12px)); }
 .activity-months { display: grid; grid-template-columns: repeat(53, var(--activity-size)); column-gap: var(--activity-gap); width: max-content; min-width: 100%; justify-content: space-between; margin-top: 13px; color: #969691; font-size: 12px; }
 .activity-months span { white-space: nowrap; }
-.suite-sync-section { margin-top: 32px; padding: 27px 0 10px; border-top: 1px solid #eeeeea; }
-.suite-sync-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.suite-sync-section { margin-top: 32px; padding: 18px 0 8px; border-top: 1px solid #eeeeea; }
+.suite-sync-section[data-expanded="true"] { padding-top: 27px; }
+.suite-sync-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .suite-sync-heading h2 { margin: 0; font-size: 19px; font-weight: 700; }
-.suite-sync-heading p:not(.eyebrow) { margin: 7px 0 0; color: #777771; font-size: 11px; }
+.suite-sync-heading p { margin: 7px 0 0; color: #777771; font-size: 11px; }
+.suite-sync-heading-actions { display: flex; align-items: center; gap: 7px; }
 .suite-sync-status { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 999px; background: #f2f2ef; color: #666660; font-size: 10px; white-space: nowrap; }
 .suite-sync-status[data-status="synced"] { background: #e9f4eb; color: #356b41; }
 .suite-sync-status[data-status="error"] { background: #f8ecea; color: #a44840; }
+.suite-sync-toggle { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 1px solid #e1e1dc; border-radius: 9px; background: transparent; color: #777771; cursor: pointer; }
+.suite-sync-toggle:hover { background: #f3f3f0; color: #222220; }
 .suite-sync-controls { display: flex; align-items: center; gap: 7px; margin-top: 18px; }
 .suite-sync-controls label { flex: 1; max-width: 330px; }
 .suite-sync-controls input { width: 100%; height: 36px; padding: 0 11px; border: 1px solid #deded8; border-radius: 9px; outline: none; background: #fff; color: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
@@ -364,6 +368,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .suite-sync-status { background: #30302d; color: #b8b8b2; }
 [data-theme="dark"] .suite-sync-status[data-status="synced"] { background: #25372a; color: #9bc4a2; }
 [data-theme="dark"] .suite-sync-status[data-status="error"] { background: #412c29; color: #e1a29b; }
+[data-theme="dark"] .suite-sync-toggle { border-color: #444440; color: #b8b8b2; }
+[data-theme="dark"] .suite-sync-toggle:hover { background: #30302d; color: #eeeeea; }
 [data-theme="dark"] .suite-sync-controls input { border-color: #444440; background: #292927; color: #ecece7; }
 [data-theme="dark"] .suite-sync-controls input:focus { border-color: #777770; box-shadow: 0 0 0 3px #30302d; }
 

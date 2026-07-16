@@ -137,11 +137,16 @@ test('shows the activity heatmap after the bottom management panels', () => {
   expect(panels.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
 
-test('shows one-code sync for the dashboard and integrated tools at the bottom', () => {
+test('keeps sync settings collapsed until requested', async () => {
+  const user = userEvent.setup()
   render(<App />)
   const sync = screen.getByRole('region', { name: '数据同步' })
+  expect(within(sync).queryByRole('textbox', { name: '同步码' })).not.toBeInTheDocument()
+  await user.click(within(sync).getByRole('button', { name: '展开同步设置' }))
   expect(within(sync).getByText('项目、饮食与清单数据')).toBeVisible()
   expect(within(sync).getByRole('textbox', { name: '同步码' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '连接' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '新建同步码' })).toBeVisible()
+  await user.click(within(sync).getByRole('button', { name: '收起同步设置' }))
+  expect(within(sync).queryByRole('textbox', { name: '同步码' })).not.toBeInTheDocument()
 })
