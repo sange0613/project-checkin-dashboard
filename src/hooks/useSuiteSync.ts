@@ -74,6 +74,25 @@ function saveDashboardSync(sync: SyncState) {
   localStorage.setItem(DASHBOARD_SYNC_KEY, JSON.stringify(sync))
 }
 
+function suiteForCloud(suite: SuiteSyncState, currentState: AppState): SuiteSyncState {
+  const dashboard = suite.apps.dashboard
+  if (!dashboard) return suite
+  const sync = normalizeSyncState(dashboard.value)
+  return {
+    ...suite,
+    apps: {
+      ...suite.apps,
+      dashboard: {
+        ...dashboard,
+        value: {
+          ...dashboardViewValue(applySyncStateToAppState(currentState, sync)),
+          _sync: sync,
+        },
+      },
+    },
+  }
+}
+
 function loadMeta(): SyncMeta {
   const parsed = parseJson(localStorage.getItem(SUITE_META_KEY))
   return parsed && typeof parsed === 'object' ? parsed as SyncMeta : {}
@@ -199,7 +218,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           const snapshot = await transaction.get(session.document)
           const remote = normalizeSuiteState(snapshot.exists() ? snapshot.data().suite : undefined)
           const next = mergeSuiteStates(remote, local)
-          transaction.set(session.document, { suite: next, updatedAt: serverTimestamp() })
+          transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
           return next
         })
         if (!session.disposed) {
@@ -278,7 +297,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           }
           const local = collectLocalSuite()
           const next = mergeSuiteStates(remote, local)
-          transaction.set(session.document, { suite: next, updatedAt: serverTimestamp() })
+          transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
           return next
         })
         if (disposed) return

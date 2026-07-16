@@ -45,8 +45,9 @@ function stampLegacyDashboard(sync: SyncState, stampValue: VersionStamp): SyncSt
 }
 
 function normalizeDashboardValue(value: unknown, stampValue: VersionStamp): SyncState | undefined {
-  if (isLegacyDashboardValue(value)) return stampLegacyDashboard(createSyncStateFromAppState(value), stampValue)
+  if (isRecord(value) && isRecord(value._sync) && value._sync.schemaVersion === 2) return normalizeSyncState(value._sync)
   if (isRecord(value) && value.schemaVersion === 2) return normalizeSyncState(value)
+  if (isLegacyDashboardValue(value)) return stampLegacyDashboard(createSyncStateFromAppState(value), stampValue)
   return undefined
 }
 

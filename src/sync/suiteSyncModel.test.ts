@@ -80,6 +80,27 @@ describe('suite sync model', () => {
     })
   })
 
+  it('uses embedded sync metadata from backward-compatible dashboard payloads', () => {
+    const visible = {
+      ...createInitialState(),
+      projects: [{ id: 'stale-project', name: '旧项目', createdAt: '2026-07-01', archived: false }],
+    }
+    const deleted = reconcileAppStateWithSyncState(
+      createSyncStateFromAppState(visible),
+      { ...visible, projects: [] },
+      { updatedAt: 20, updatedBy: 'new-device' },
+    )
+    const normalized = normalizeSuiteState({
+      apps: { dashboard: { value: { ...visible, _sync: deleted }, updatedAt: 20, updatedBy: 'new-device' } },
+    })
+
+    expect((normalized.apps.dashboard?.value as SyncState).projects).toEqual([])
+    expect((normalized.apps.dashboard?.value as SyncState).tombstones.projects['stale-project']).toEqual({
+      updatedAt: 20,
+      updatedBy: 'new-device',
+    })
+  })
+
   it('ignores malformed cloud fields', () => {
     expect(normalizeSuiteState({ apps: { dashboard: 'bad', unknown: { value: true } } })).toEqual({ version: 1, apps: {} })
     expect(normalizeSuiteState({ apps: { dashboard: { value: true, updatedAt: 9, updatedBy: 'bad' } } })).toEqual({ version: 1, apps: {} })
