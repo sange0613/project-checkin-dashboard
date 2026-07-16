@@ -173,7 +173,6 @@ export default function App() {
           <a className="icon-button shortcut-character" href="https://mungermodels.com" target="_blank" rel="noopener noreferrer" aria-label="Munger Models" title="Munger Models">芒</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/daily-calorie-tracker/" target="_blank" rel="noopener noreferrer" aria-label="每日卡路里" title="每日卡路里">饮</a>
           <a className="icon-button shortcut-character" href="https://gogoscrum.com" target="_blank" rel="noopener noreferrer" aria-label="GoGoScrum" title="GoGoScrum">项</a>
-          <a className="icon-button shortcut-character" href="https://dapanyuntu.com" target="_blank" rel="noopener noreferrer" aria-label="DaPanYunTu" title="DaPanYunTu">盘</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-wechat-editor/" target="_blank" rel="noopener noreferrer" aria-label="公众号编辑器" title="公众号编辑器">公</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-image-collage/" target="_blank" rel="noopener noreferrer" aria-label="图片拼贴" title="图片拼贴">拼</a>

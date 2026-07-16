@@ -54,7 +54,6 @@ test.each([
   ['Munger Models', 'https://mungermodels.com'],
   ['每日卡路里', 'https://sange1022.github.io/daily-calorie-tracker/'],
   ['GoGoScrum', 'https://gogoscrum.com'],
-  ['DaPanYunTu', 'https://dapanyuntu.com'],
   ['字间排版', 'https://sange1022.github.io/zijian-text-layout/'],
   ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
