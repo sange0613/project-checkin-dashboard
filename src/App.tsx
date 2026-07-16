@@ -231,6 +231,9 @@ export default function App() {
           ))}
         </nav>
         <div className="top-actions">
+          <button type="button" className="icon-button shortcut-character" aria-label="每日卡路里" title="每日卡路里" onClick={() => openIntegratedTool('daily')}>饮</button>
+          <button type="button" className="icon-button shortcut-character" aria-label="清单打卡" title="清单打卡" onClick={() => openIntegratedTool('checklist')}>清</button>
+          <button type="button" className="icon-button shortcut-character" aria-label="字间排版" title="字间排版" onClick={() => openIntegratedTool('layout')}>字</button>
           <a
             className="icon-button"
             href="https://sange1022.github.io/english-copywork-trainer/"
@@ -243,12 +246,9 @@ export default function App() {
           </a>
           <a className="icon-button shortcut-character" href="https://learnbuffett.com" target="_blank" rel="noopener noreferrer" aria-label="Learn Buffett" title="Learn Buffett">巴</a>
           <a className="icon-button shortcut-character" href="https://mungermodels.com" target="_blank" rel="noopener noreferrer" aria-label="Munger Models" title="Munger Models">芒</a>
-          <button type="button" className="icon-button shortcut-character" aria-label="每日卡路里" title="每日卡路里" onClick={() => openIntegratedTool('daily')}>饮</button>
           <a className="icon-button shortcut-character" href="https://gogoscrum.com" target="_blank" rel="noopener noreferrer" aria-label="GoGoScrum" title="GoGoScrum">项</a>
-          <button type="button" className="icon-button shortcut-character" aria-label="字间排版" title="字间排版" onClick={() => openIntegratedTool('layout')}>字</button>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-wechat-editor/" target="_blank" rel="noopener noreferrer" aria-label="公众号编辑器" title="公众号编辑器">公</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-image-collage/" target="_blank" rel="noopener noreferrer" aria-label="图片拼贴" title="图片拼贴">拼</a>
-          <button type="button" className="icon-button shortcut-character" aria-label="清单打卡" title="清单打卡" onClick={() => openIntegratedTool('checklist')}>清</button>
           <a className="icon-button" href="https://github.com/sange1022" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页">
             <Github size={17} />
           </a>

@@ -49,6 +49,14 @@ test('opens the GitHub profile shortcut safely in a new tab', () => {
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
 
+test('places the synced tools first with daily at the front', () => {
+  render(<App />)
+  const actions = document.querySelector('.top-actions')
+  expect(actions).not.toBeNull()
+  expect(Array.from(actions?.children ?? []).slice(0, 3).map((item) => item.getAttribute('aria-label')))
+    .toEqual(['每日卡路里', '清单打卡', '字间排版'])
+})
+
 test.each([
   ['Learn Buffett', 'https://learnbuffett.com'],
   ['Munger Models', 'https://mungermodels.com'],
