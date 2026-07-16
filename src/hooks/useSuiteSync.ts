@@ -11,7 +11,6 @@ import {
   suiteStatesEqual,
   type SuiteAppId,
   type SuiteSyncState,
-  type VersionedPayload,
 } from '../sync/suiteSyncModel'
 
 const FIREBASE_CONFIG = {
@@ -30,8 +29,6 @@ const DAILY_CODE_KEY = 'calorie-tracker-v1-sync-code'
 const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   daily: 'calorie-tracker-v1',
   checklist: 'qingdan-app-state-v2',
-  layoutEditor: 'zijian-editor-state-v1',
-  layoutRecords: 'zijian-saved-layout-records-v1',
 }
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>

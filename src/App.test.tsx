@@ -71,7 +71,7 @@ test.each([
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
 
-test('opens and switches the integrated daily checklist and layout tools', async () => {
+test('opens and switches the integrated daily and checklist tools', async () => {
   const user = userEvent.setup()
   render(<App />)
 
@@ -84,11 +84,17 @@ test('opens and switches the integrated daily checklist and layout tools', async
   expect(within(tools).getByTitle('清单打卡')).toHaveAttribute('src', 'https://sange1022.github.io/qingdan-checklist/')
   expect(within(tools).getByTitle('每日卡路里')).not.toBeVisible()
 
-  await user.click(screen.getByRole('button', { name: '字间排版' }))
-  expect(within(tools).getByTitle('字间排版')).toHaveAttribute('src', 'https://sange1022.github.io/zijian-text-layout/')
   await user.click(screen.getByRole('button', { name: '关闭综合工具' }))
   expect(screen.queryByRole('region', { name: '综合工具' })).not.toBeInTheDocument()
   expect(screen.getByRole('region', { name: '打卡活动' })).toBeVisible()
+})
+
+test('opens the layout tool in its original standalone page', () => {
+  render(<App />)
+  const link = screen.getByRole('link', { name: '字间排版' })
+  expect(link).toHaveAttribute('href', 'https://sange1022.github.io/zijian-text-layout/')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
 
 test('does not show the removed xhs trend radar shortcut', () => {
@@ -134,7 +140,7 @@ test('shows the activity heatmap after the bottom management panels', () => {
 test('shows one-code sync for the dashboard and integrated tools at the bottom', () => {
   render(<App />)
   const sync = screen.getByRole('region', { name: '数据同步' })
-  expect(within(sync).getByText('本页面全部数据')).toBeVisible()
+  expect(within(sync).getByText('项目、饮食与清单数据')).toBeVisible()
   expect(within(sync).getByRole('textbox', { name: '同步码' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '连接' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '新建同步码' })).toBeVisible()

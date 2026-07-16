@@ -18,7 +18,7 @@ export function SuiteSyncPanel({ code, connected, status, message, onCodeChange,
         <div>
           <p className="eyebrow">ONE CODE · ALL DATA</p>
           <h2>数据同步</h2>
-          <p>本页面全部数据</p>
+          <p>项目、饮食与清单数据</p>
         </div>
         <span className="suite-sync-status" data-status={status} role="status">
           {status === 'syncing' || status === 'connecting' ? <RefreshCw size={14} className="spin" /> : connected ? <Cloud size={14} /> : <CloudOff size={14} />}

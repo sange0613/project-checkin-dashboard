@@ -22,7 +22,6 @@ const repository = createLocalCheckinRepository(window.localStorage)
 const integratedTools = [
   { id: 'daily', label: '饮', name: '每日卡路里', url: 'https://sange1022.github.io/daily-calorie-tracker/' },
   { id: 'checklist', label: '清', name: '清单打卡', url: 'https://sange1022.github.io/qingdan-checklist/' },
-  { id: 'layout', label: '字', name: '字间排版', url: 'https://sange1022.github.io/zijian-text-layout/' },
 ] as const
 
 type IntegratedToolId = typeof integratedTools[number]['id']
@@ -233,7 +232,7 @@ export default function App() {
         <div className="top-actions">
           <button type="button" className="icon-button shortcut-character" aria-label="每日卡路里" title="每日卡路里" onClick={() => openIntegratedTool('daily')}>饮</button>
           <button type="button" className="icon-button shortcut-character" aria-label="清单打卡" title="清单打卡" onClick={() => openIntegratedTool('checklist')}>清</button>
-          <button type="button" className="icon-button shortcut-character" aria-label="字间排版" title="字间排版" onClick={() => openIntegratedTool('layout')}>字</button>
+          <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
           <a
             className="icon-button"
             href="https://sange1022.github.io/english-copywork-trainer/"

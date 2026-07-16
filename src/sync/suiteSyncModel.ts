@@ -1,4 +1,4 @@
-export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist', 'layoutEditor', 'layoutRecords'] as const
+export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist'] as const
 
 export type SuiteAppId = typeof SUITE_APP_IDS[number]
 
@@ -210,7 +210,6 @@ function mergeAppPayload(id: SuiteAppId, left: VersionedPayload, right: Versione
   if (id === 'dashboard') value = mergeDashboard(latest.value, older.value)
   else if (id === 'daily') value = mergeDaily(latest.value, older.value)
   else if (id === 'checklist') value = mergeChecklist(latest.value, older.value)
-  else if (id === 'layoutRecords') value = mergeById(latest.value, older.value)
   return { ...latest, value }
 }
 
