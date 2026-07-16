@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { DocumentReference, Unsubscribe } from 'firebase/firestore'
-import type { AppState } from '../domain/types'
+import {
+  applySyncStateToAppState,
+  createSyncStateFromAppState,
+  latestSyncTimestamp,
+  normalizeSyncState,
+  reconcileAppStateWithSyncState,
+} from '../domain/cloudSync'
+import type { AppState, SyncState } from '../domain/types'
 import {
   SUITE_APP_IDS,
   cleanSyncCode,
@@ -25,6 +32,7 @@ const FIREBASE_CONFIG = {
 const SUITE_CODE_KEY = 'project-suite-sync-code-v1'
 const SUITE_DEVICE_KEY = 'project-suite-device-id-v1'
 const SUITE_META_KEY = 'project-suite-sync-meta-v1'
+const DASHBOARD_SYNC_KEY = 'project-suite-dashboard-sync-v2'
 const DAILY_CODE_KEY = 'calorie-tracker-v1-sync-code'
 const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   daily: 'calorie-tracker-v1',
@@ -52,16 +60,18 @@ function fingerprint(value: unknown): string {
   return JSON.stringify(value)
 }
 
-function dashboardValue(state: AppState): Omit<AppState, 'view' | 'anchorDate'> {
+function dashboardViewValue(state: AppState): Omit<AppState, 'view' | 'anchorDate'> {
   const { view: _view, anchorDate: _anchorDate, ...synced } = state
   return synced
 }
 
-function isDashboardValue(value: unknown): value is Omit<AppState, 'view' | 'anchorDate'> {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<AppState>
-  return typeof candidate.title === 'string' && Array.isArray(candidate.projects) && Boolean(candidate.checkins)
-    && Array.isArray(candidate.randomCategories) && Array.isArray(candidate.stageProjects)
+function loadDashboardSync(state: AppState): SyncState {
+  const saved = parseJson(localStorage.getItem(DASHBOARD_SYNC_KEY))
+  return saved ? normalizeSyncState(saved) : createSyncStateFromAppState(state)
+}
+
+function saveDashboardSync(sync: SyncState) {
+  localStorage.setItem(DASHBOARD_SYNC_KEY, JSON.stringify(sync))
 }
 
 function loadMeta(): SyncMeta {
@@ -92,14 +102,18 @@ function initialCode(): string {
 export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<AppState>>) {
   const [codeInput, setCodeInputState] = useState(initialCode)
   const [connectedCode, setConnectedCode] = useState('')
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
   const [status, setStatus] = useState<SyncStatus>('local')
   const [message, setMessage] = useState('仅保存在当前浏览器')
   const [toolDataRevision, setToolDataRevision] = useState(0)
+  const [initialMeta] = useState(loadMeta)
+  const [initialDashboardSync] = useState(() => loadDashboardSync(state))
+  const [deviceId] = useState(getDeviceId)
   const stateRef = useRef(state)
-  const metaRef = useRef<SyncMeta>(loadMeta())
+  const metaRef = useRef<SyncMeta>(initialMeta)
+  const dashboardSyncRef = useRef<SyncState>(initialDashboardSync)
   const sessionRef = useRef<SyncSession | null>(null)
-  const pushRef = useRef<() => void>(() => undefined)
-  const deviceIdRef = useRef(getDeviceId())
+  const deviceIdRef = useRef(deviceId)
 
   useEffect(() => { stateRef.current = state }, [state])
 
@@ -110,15 +124,20 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     for (const id of SUITE_APP_IDS) {
       const payload = suite.apps[id]
       if (!payload) continue
-      const nextFingerprint = fingerprint(payload.value)
-      metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
 
       if (id === 'dashboard') {
-        const syncedDashboard = payload.value
-        if (isDashboardValue(syncedDashboard) && fingerprint(dashboardValue(stateRef.current)) !== nextFingerprint) {
-          setState((current) => ({ ...current, ...syncedDashboard, view: current.view, anchorDate: current.anchorDate }))
-        }
+        const syncedDashboard = normalizeSyncState(payload.value)
+        const nextFingerprint = fingerprint(syncedDashboard)
+        metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
+        dashboardSyncRef.current = syncedDashboard
+        saveDashboardSync(syncedDashboard)
+        setState((current) => {
+          const next = applySyncStateToAppState(current, syncedDashboard)
+          return fingerprint(dashboardViewValue(current)) === fingerprint(dashboardViewValue(next)) ? current : next
+        })
       } else {
+        const nextFingerprint = fingerprint(payload.value)
+        metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         const storageKey = TOOL_STORAGE_KEYS[id]
         if (fingerprint(parseJson(localStorage.getItem(storageKey))) !== nextFingerprint) {
           localStorage.setItem(storageKey, JSON.stringify(payload.value))
@@ -132,7 +151,17 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   }, [setState])
 
   const collectLocalSuite = useCallback((): SuiteSyncState => {
-    const values: Partial<Record<SuiteAppId, unknown>> = { dashboard: dashboardValue(stateRef.current) }
+    const dashboardSync = reconcileAppStateWithSyncState(
+      dashboardSyncRef.current,
+      stateRef.current,
+      {
+        updatedAt: Math.max(Date.now(), latestSyncTimestamp(dashboardSyncRef.current) + 1),
+        updatedBy: deviceIdRef.current,
+      },
+    )
+    dashboardSyncRef.current = dashboardSync
+    saveDashboardSync(dashboardSync)
+    const values: Partial<Record<SuiteAppId, unknown>> = { dashboard: dashboardSync }
     for (const id of Object.keys(TOOL_STORAGE_KEYS) as Exclude<SuiteAppId, 'dashboard'>[]) {
       const value = readToolValue(id)
       if (value !== undefined) values[id] = value
@@ -188,15 +217,22 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     }, 800)
   }, [applySuite, collectLocalSuite])
 
-  useEffect(() => { pushRef.current = schedulePush }, [schedulePush])
-
   useEffect(() => {
     const session = sessionRef.current
     if (!session?.ready) return
-    const value = dashboardValue(state)
+    const value = reconcileAppStateWithSyncState(
+      dashboardSyncRef.current,
+      state,
+      {
+        updatedAt: Math.max(Date.now(), latestSyncTimestamp(dashboardSyncRef.current) + 1),
+        updatedBy: deviceIdRef.current,
+      },
+    )
     const nextFingerprint = fingerprint(value)
     const meta = metaRef.current.dashboard
     if (meta?.fingerprint === nextFingerprint) return
+    dashboardSyncRef.current = value
+    saveDashboardSync(value)
     metaRef.current.dashboard = { fingerprint: nextFingerprint, updatedAt: Date.now(), updatedBy: deviceIdRef.current }
     saveMeta(metaRef.current)
     schedulePush()
@@ -286,7 +322,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       session.unsubscribe?.()
       if (session.timer) clearTimeout(session.timer)
     }
-  }, [applySuite, collectLocalSuite, connectedCode, schedulePush])
+  }, [applySuite, collectLocalSuite, connectedCode, connectionAttempt, schedulePush])
 
   useEffect(() => {
     if (!connectedCode) return
@@ -316,8 +352,9 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     }
     localStorage.setItem(SUITE_CODE_KEY, normalized)
     localStorage.removeItem(DAILY_CODE_KEY)
-    setConnectedCode(normalized)
-  }, [codeInput])
+    if (normalized === connectedCode) setConnectionAttempt((attempt) => attempt + 1)
+    else setConnectedCode(normalized)
+  }, [codeInput, connectedCode])
 
   const createAndConnect = useCallback(() => {
     const code = generateSyncCode()
@@ -339,6 +376,14 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     const saved = initialCode()
     if (saved.length >= 12) setConnectedCode(saved)
   }, [])
+
+  useEffect(() => {
+    const reconnectWhenOnline = () => {
+      if (connectedCode && status === 'error') setConnectionAttempt((attempt) => attempt + 1)
+    }
+    window.addEventListener('online', reconnectWhenOnline)
+    return () => window.removeEventListener('online', reconnectWhenOnline)
+  }, [connectedCode, status])
 
   return {
     codeInput,

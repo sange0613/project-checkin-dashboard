@@ -142,6 +142,7 @@ function normalizeEntities(kind: SyncEntityKind, value: unknown): SyncEntity[] {
         name: stringValue(candidate.name),
         stageIndex: stageIndexValue(candidate.stageIndex),
         createdAt: stringValue(candidate.createdAt),
+        order: numberValue(candidate.order),
         ...stamp,
       })
     }
@@ -227,7 +228,7 @@ export function createSyncStateFromAppState(state: AppState): SyncState {
       }] : []
     }),
   )
-  sync.stageProjects = state.stageProjects.map((project) => ({ ...project, ...BASELINE_STAMP }))
+  sync.stageProjects = state.stageProjects.map((project, order) => ({ ...project, order, ...BASELINE_STAMP }))
   sync.settings = {
     title: setting(state.title),
     theme: setting(state.theme),
@@ -289,6 +290,71 @@ export function mergeSyncStates(left: SyncState, right: SyncState): SyncState {
   })
 }
 
+function withoutVersion<T extends VersionStamp>(value: T): Omit<T, keyof VersionStamp> {
+  const { updatedAt: _updatedAt, updatedBy: _updatedBy, ...content } = value
+  return content
+}
+
+function reconcileEntities<T extends { id: string } & VersionStamp>(
+  previous: T[],
+  current: T[],
+  previousTombstones: Record<string, VersionStamp>,
+  changeStamp: VersionStamp,
+): { entities: T[]; tombstones: Record<string, VersionStamp> } {
+  const previousById = new Map(previous.map((entity) => [entity.id, entity]))
+  const currentIds = new Set(current.map((entity) => entity.id))
+  const tombstones = { ...previousTombstones }
+  const entities = current.map((entity) => {
+    const older = previousById.get(entity.id)
+    if (older && canonicalJson(withoutVersion(older)) === canonicalJson(withoutVersion(entity))) return older
+    return { ...entity, ...changeStamp }
+  })
+
+  for (const entity of previous) {
+    if (currentIds.has(entity.id)) continue
+    tombstones[entity.id] = chooseLatest(tombstones[entity.id], changeStamp) as VersionStamp
+  }
+
+  return { entities, tombstones }
+}
+
+export function reconcileAppStateWithSyncState(
+  previousValue: SyncState,
+  currentState: AppState,
+  changeStamp: VersionStamp,
+): SyncState {
+  const previous = normalizeSyncState(previousValue)
+  const current = createSyncStateFromAppState(currentState)
+  const projects = reconcileEntities(previous.projects, current.projects, previous.tombstones.projects, changeStamp)
+  const checkins = reconcileEntities(previous.checkins, current.checkins, previous.tombstones.checkins, changeStamp)
+  const randomItems = reconcileEntities(previous.randomItems, current.randomItems, previous.tombstones.randomItems, changeStamp)
+  const randomResults = reconcileEntities(previous.randomResults, current.randomResults, previous.tombstones.randomResults, changeStamp)
+  const stageProjects = reconcileEntities(previous.stageProjects, current.stageProjects, previous.tombstones.stageProjects, changeStamp)
+  const settings = Object.fromEntries(Object.entries(current.settings).map(([key, settingValue]) => {
+    const older = previous.settings[key]
+    return [key, older && canonicalJson(older.value) === canonicalJson(settingValue.value)
+      ? older
+      : { ...settingValue, ...changeStamp }]
+  }))
+
+  return mergeSyncStates(normalizeSyncState({
+    schemaVersion: 2,
+    projects: projects.entities,
+    checkins: checkins.entities,
+    randomItems: randomItems.entities,
+    randomResults: randomResults.entities,
+    stageProjects: stageProjects.entities,
+    settings,
+    tombstones: {
+      projects: projects.tombstones,
+      checkins: checkins.tombstones,
+      randomItems: randomItems.tombstones,
+      randomResults: randomResults.tombstones,
+      stageProjects: stageProjects.tombstones,
+    },
+  }), emptySyncState())
+}
+
 function settingString(sync: SyncState, key: string, fallback: string): string {
   const value = sync.settings[key]?.value
   return typeof value === 'string' ? value : fallback
@@ -333,7 +399,9 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     })
   }
   const dailyRandomResults = Object.fromEntries(resultsByDate) as AppState['dailyRandomResults']
-  const stageProjects = sync.stageProjects.map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, ...project }) => project)
+  const stageProjects = [...sync.stageProjects]
+    .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
+    .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => project)
   const stageLabels = Array.from({ length: 15 }, (_, index) =>
     settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''),
   )

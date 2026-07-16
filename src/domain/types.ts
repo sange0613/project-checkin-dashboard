@@ -42,7 +42,7 @@ export type SyncState = {
   checkins: Versioned<{ id: string; projectId: string; dateKey: string }>[]
   randomItems: Versioned<{ id: string; categoryId: RandomCategory['id']; name: string; order: number }>[]
   randomResults: Versioned<{ id: string; dateKey: string; categoryId: RandomCategory['id']; itemId: string; name: string }>[]
-  stageProjects: Versioned<StageProject>[]
+  stageProjects: Versioned<StageProject & { order: number }>[]
   settings: Record<string, { value: SyncSettingValue } & VersionStamp>
   tombstones: Record<SyncEntityKind, Record<string, VersionStamp>>
 }

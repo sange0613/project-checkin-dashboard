@@ -5,6 +5,7 @@ import {
   latestSyncTimestamp,
   mergeSyncStates,
   normalizeSyncState,
+  reconcileAppStateWithSyncState,
   syncStatesEqual,
 } from './cloudSync'
 import { createInitialState, type AppState } from './types'
@@ -35,9 +36,9 @@ describe('canonical cloud sync merge', () => {
   it('normalizes stage indices to integers within the board range', () => {
     const sync = normalizeSyncState({
       stageProjects: [
-        { id: 'low', name: '低', stageIndex: -2, createdAt: '', updatedAt: 0, updatedBy: '' },
-        { id: 'high', name: '高', stageIndex: 20, createdAt: '', updatedAt: 0, updatedBy: '' },
-        { id: 'fraction', name: '小数', stageIndex: 1.5, createdAt: '', updatedAt: 0, updatedBy: '' },
+        { id: 'low', name: '低', stageIndex: -2, createdAt: '', order: 0, updatedAt: 0, updatedBy: '' },
+        { id: 'high', name: '高', stageIndex: 20, createdAt: '', order: 1, updatedAt: 0, updatedBy: '' },
+        { id: 'fraction', name: '小数', stageIndex: 1.5, createdAt: '', order: 2, updatedAt: 0, updatedBy: '' },
       ],
     })
 
@@ -202,5 +203,63 @@ describe('canonical cloud sync merge', () => {
     expect(visible.randomCategories[0].items.map(({ id }) => id)).toEqual(['item-z', 'item-a'])
     expect(visible.view).toBe('month')
     expect(visible.anchorDate).toBe('2026-04-03T00:00:00.000Z')
+  })
+
+  it('keeps project and check-in deletions when merged with an older device', () => {
+    const before = state({
+      projects: [{ id: 'project-a', name: '项目', createdAt: '2026-07-01', archived: false }],
+      checkins: { 'project-a': ['2026-07-16'] },
+    })
+    const olderRemote = reconcileAppStateWithSyncState(
+      createSyncStateFromAppState(before),
+      before,
+      { updatedAt: 10, updatedBy: 'device-old' },
+    )
+    const after = state({ projects: [], checkins: {} })
+    const deleted = reconcileAppStateWithSyncState(
+      olderRemote,
+      after,
+      { updatedAt: 20, updatedBy: 'device-new' },
+    )
+    const merged = mergeSyncStates(olderRemote, deleted)
+    const visible = applySyncStateToAppState(after, merged)
+
+    expect(visible.projects).toEqual([])
+    expect(visible.checkins).toEqual({})
+    expect(merged.tombstones.projects['project-a']).toEqual({ updatedAt: 20, updatedBy: 'device-new' })
+    expect(merged.tombstones.checkins['project-a:2026-07-16']).toEqual({ updatedAt: 20, updatedBy: 'device-new' })
+  })
+
+  it('keeps deleted prompt items and stage projects deleted after merging', () => {
+    const before = state({
+      randomCategories: [
+        { id: 'fitness', name: '健身', items: [{ id: 'pushup', name: '俯卧撑' }] },
+        { id: 'modeling', name: '建模', items: [] },
+        { id: 'mind', name: '建脑', items: [] },
+      ],
+      stageProjects: [{ id: 'stage-a', name: '设计项目', stageIndex: 2, createdAt: '2026-07-01' }],
+    })
+    const olderRemote = reconcileAppStateWithSyncState(
+      createSyncStateFromAppState(before),
+      before,
+      { updatedAt: 10, updatedBy: 'device-old' },
+    )
+    const after = state({
+      randomCategories: [
+        { id: 'fitness', name: '健身', items: [] },
+        { id: 'modeling', name: '建模', items: [] },
+        { id: 'mind', name: '建脑', items: [] },
+      ],
+      stageProjects: [],
+    })
+    const deleted = reconcileAppStateWithSyncState(
+      olderRemote,
+      after,
+      { updatedAt: 20, updatedBy: 'device-new' },
+    )
+    const visible = applySyncStateToAppState(after, mergeSyncStates(olderRemote, deleted))
+
+    expect(visible.randomCategories[0].items).toEqual([])
+    expect(visible.stageProjects).toEqual([])
   })
 })

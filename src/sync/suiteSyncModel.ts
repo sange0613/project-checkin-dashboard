@@ -1,3 +1,6 @@
+import { createSyncStateFromAppState, mergeSyncStates, normalizeSyncState } from '../domain/cloudSync'
+import type { AppState, SyncState, VersionStamp } from '../domain/types'
+
 export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist'] as const
 
 export type SuiteAppId = typeof SUITE_APP_IDS[number]
@@ -17,12 +20,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function normalizePayload(value: unknown): VersionedPayload | undefined {
+function isLegacyDashboardValue(value: unknown): value is AppState {
+  if (!isRecord(value)) return false
+  return typeof value.title === 'string'
+    && Array.isArray(value.projects)
+    && isRecord(value.checkins)
+    && Array.isArray(value.randomCategories)
+    && isRecord(value.dailyRandomResults)
+    && Array.isArray(value.stageProjects)
+    && typeof value.stageBoardTitle === 'string'
+    && Array.isArray(value.stageLabels)
+}
+
+function stampLegacyDashboard(sync: SyncState, stampValue: VersionStamp): SyncState {
+  return normalizeSyncState({
+    ...sync,
+    projects: sync.projects.map((entity) => ({ ...entity, ...stampValue })),
+    checkins: sync.checkins.map((entity) => ({ ...entity, ...stampValue })),
+    randomItems: sync.randomItems.map((entity) => ({ ...entity, ...stampValue })),
+    randomResults: sync.randomResults.map((entity) => ({ ...entity, ...stampValue })),
+    stageProjects: sync.stageProjects.map((entity) => ({ ...entity, ...stampValue })),
+    settings: Object.fromEntries(Object.entries(sync.settings).map(([key, setting]) => [key, { ...setting, ...stampValue }])),
+  })
+}
+
+function normalizeDashboardValue(value: unknown, stampValue: VersionStamp): SyncState | undefined {
+  if (isLegacyDashboardValue(value)) return stampLegacyDashboard(createSyncStateFromAppState(value), stampValue)
+  if (isRecord(value) && value.schemaVersion === 2) return normalizeSyncState(value)
+  return undefined
+}
+
+function normalizePayload(id: SuiteAppId, value: unknown): VersionedPayload | undefined {
   if (!isRecord(value) || !('value' in value)) return undefined
-  return {
-    value: value.value,
+  const stampValue = {
     updatedAt: typeof value.updatedAt === 'number' && Number.isFinite(value.updatedAt) ? value.updatedAt : 0,
     updatedBy: typeof value.updatedBy === 'string' ? value.updatedBy : '',
+  }
+  const normalizedValue = id === 'dashboard' ? normalizeDashboardValue(value.value, stampValue) : value.value
+  if (normalizedValue === undefined) return undefined
+  return {
+    value: normalizedValue,
+    ...stampValue,
   }
 }
 
@@ -30,7 +68,7 @@ export function normalizeSuiteState(value: unknown): SuiteSyncState {
   const source = isRecord(value) && isRecord(value.apps) ? value.apps : {}
   const apps: SuiteSyncState['apps'] = {}
   for (const id of SUITE_APP_IDS) {
-    const payload = normalizePayload(source[id])
+    const payload = normalizePayload(id, source[id])
     if (payload) apps[id] = payload
   }
   return { version: 1, apps }
@@ -75,44 +113,6 @@ function mergeById(primaryValue: unknown, secondaryValue: unknown, mergeItem?: (
     return older && mergeItem ? mergeItem(item, older) : item
   })
   return [...merged, ...secondary.filter((item) => secondaryById.has(String(item.id || '')))]
-}
-
-function mergeDashboard(primaryValue: unknown, secondaryValue: unknown): unknown {
-  const primary = record(primaryValue)
-  const secondary = record(secondaryValue)
-  const primaryCheckins = record(primary.checkins)
-  const secondaryCheckins = record(secondary.checkins)
-  const checkins = Object.fromEntries(
-    [...new Set([...Object.keys(primaryCheckins), ...Object.keys(secondaryCheckins)])].map((projectId) => [
-      projectId,
-      [...new Set([
-        ...(Array.isArray(primaryCheckins[projectId]) ? primaryCheckins[projectId] as string[] : []),
-        ...(Array.isArray(secondaryCheckins[projectId]) ? secondaryCheckins[projectId] as string[] : []),
-      ])].sort(),
-    ]),
-  )
-  const categoryMerge = (newer: Record<string, unknown>, older: Record<string, unknown>) => ({
-    ...older,
-    ...newer,
-    items: mergeById(newer.items, older.items),
-  })
-  const primaryResults = record(primary.dailyRandomResults)
-  const secondaryResults = record(secondary.dailyRandomResults)
-  const dailyRandomResults = Object.fromEntries(
-    [...new Set([...Object.keys(primaryResults), ...Object.keys(secondaryResults)])].map((date) => [
-      date,
-      { ...record(secondaryResults[date]), ...record(primaryResults[date]) },
-    ]),
-  )
-  return {
-    ...secondary,
-    ...primary,
-    projects: mergeById(primary.projects, secondary.projects),
-    checkins,
-    randomCategories: mergeById(primary.randomCategories, secondary.randomCategories, categoryMerge),
-    dailyRandomResults,
-    stageProjects: mergeById(primary.stageProjects, secondary.stageProjects),
-  }
 }
 
 function mergeChecklist(primaryValue: unknown, secondaryValue: unknown): unknown {
@@ -207,7 +207,7 @@ function mergeAppPayload(id: SuiteAppId, left: VersionedPayload, right: Versione
   const latest = chooseLatest(left, right) as VersionedPayload
   const older = latest === left ? right : left
   let value = latest.value
-  if (id === 'dashboard') value = mergeDashboard(latest.value, older.value)
+  if (id === 'dashboard') value = mergeSyncStates(normalizeSyncState(latest.value), normalizeSyncState(older.value))
   else if (id === 'daily') value = mergeDaily(latest.value, older.value)
   else if (id === 'checklist') value = mergeChecklist(latest.value, older.value)
   return { ...latest, value }
