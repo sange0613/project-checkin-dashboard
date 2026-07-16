@@ -147,8 +147,14 @@ export default function App() {
   })
 
   const monthTitle = `${anchor.getFullYear()} 年 ${anchor.getMonth() + 1} 月`
-  const activeCount = state.projects.filter((project) => !project.archived).length
   const todayKey = toDateKey(today)
+  const syncSummary = suiteSync.status === 'synced'
+    ? '数据已同步'
+    : suiteSync.status === 'syncing'
+      ? '正在同步'
+      : suiteSync.status === 'connecting'
+        ? '正在连接'
+        : suiteSync.message
 
   const saveRandomResult = (categoryId: AppState['randomCategories'][number]['id'], result: { itemId: string; name: string }) => update((current) => ({
     ...current,
@@ -282,7 +288,7 @@ export default function App() {
           <div>
             <p className="eyebrow">{state.view === 'day' ? 'MONTHLY CHECK-IN' : state.view === 'week' ? 'LAST 12 WEEKS' : 'LAST 12 MONTHS'}</p>
             <h1>{state.view === 'day' ? monthTitle : state.view === 'week' ? '最近 12 周' : '最近 12 个月'}</h1>
-            <p className="period-meta">{activeCount} 个项目 · 仅保存在此浏览器</p>
+            <p className="period-meta" role="status">{syncSummary}</p>
           </div>
           {state.view === 'day' && (
             <div className="month-navigation">

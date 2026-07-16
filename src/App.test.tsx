@@ -7,6 +7,8 @@ beforeEach(() => localStorage.clear())
 test('renders the default editable page title', () => {
   render(<App />)
   expect(screen.getByText('项目进度')).toBeInTheDocument()
+  expect(document.querySelector('.period-meta')).toHaveTextContent('仅保存在当前浏览器')
+  expect(screen.queryByText(/个项目 · 仅保存在此浏览器/)).not.toBeInTheDocument()
 })
 
 test('edits the title and creates a project', async () => {
