@@ -65,6 +65,7 @@ test.each([
   ['GoGoScrum', 'https://gogoscrum.com'],
   ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
+  ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
 ])('opens the %s shortcut safely in a new tab', (name, href) => {
   render(<App />)
   const link = screen.getByRole('link', { name })
