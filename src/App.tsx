@@ -255,6 +255,8 @@ export default function App() {
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-wechat-editor/" target="_blank" rel="noopener noreferrer" aria-label="公众号编辑器" title="公众号编辑器">公</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-image-collage/" target="_blank" rel="noopener noreferrer" aria-label="图片拼贴" title="图片拼贴">拼</a>
           <a className="icon-button shortcut-character" href="https://sange1022.github.io/qf-07-9a6c3e21/" target="_blank" rel="noopener noreferrer" aria-label="构" title="构">构</a>
+          <a className="icon-button shortcut-character" href="https://sange1022.github.io/random-planar-composition/" target="_blank" rel="noopener noreferrer" aria-label="间" title="间">间</a>
+          <a className="icon-button shortcut-character" href="https://sange1022.github.io/contour-text-studio/?v=5787e7a" target="_blank" rel="noopener noreferrer" aria-label="海" title="海">海</a>
           <a className="icon-button" href="https://github.com/sange1022" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页">
             <Github size={17} />
           </a>
