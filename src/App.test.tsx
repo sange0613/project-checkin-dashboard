@@ -68,6 +68,7 @@ test.each([
   ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
   ['间', 'https://sange1022.github.io/random-planar-composition/'],
   ['海', 'https://sange1022.github.io/contour-text-studio/?v=5787e7a'],
+  ['词', 'https://sange1022.github.io/english-vocabulary-study/'],
 ])('opens the %s shortcut safely in a new tab', (name, href) => {
   render(<App />)
   const link = screen.getByRole('link', { name })
