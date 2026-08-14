@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownUp, CalendarDays, Check, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import {
   PROJECT_STAGES,
@@ -50,14 +50,22 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
     return { start, end, days: dateRange(start, end) }
   }, [hydratedProjects, today])
 
-  if (!chart) return <div className="stage-gantt-empty">添加项目后显示排期甘特图</div>
   const dayWidth = 24
   const labelWidth = 168
+  const todayIndex = chart?.days.indexOf(today) ?? -1
+  const todayScrollLeft = () => Math.max(0, labelWidth + todayIndex * dayWidth - (scrollRef.current?.clientWidth ?? 0) / 2)
+
+  useEffect(() => {
+    if (!scrollRef.current || todayIndex < 0) return
+    const frame = requestAnimationFrame(() => scrollRef.current?.scrollTo?.({ left: todayScrollLeft() }))
+    return () => cancelAnimationFrame(frame)
+  }, [todayIndex, chart?.start, chart?.end])
+
+  if (!chart) return <div className="stage-gantt-empty">添加项目后显示排期甘特图</div>
   const chartWidth = chart.days.length * dayWidth
-  const todayIndex = chart.days.indexOf(today)
   const locateToday = () => {
     if (!scrollRef.current || todayIndex < 0) return
-    scrollRef.current.scrollTo({ left: Math.max(0, labelWidth + todayIndex * dayWidth - scrollRef.current.clientWidth / 2), behavior: 'smooth' })
+    scrollRef.current.scrollTo({ left: todayScrollLeft(), behavior: 'smooth' })
   }
 
   return (

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 import { createInitialState } from '../domain/types'
@@ -129,4 +129,35 @@ test('hides completed projects by default and locates projects due within seven 
   await user.click(screen.getByRole('button', { name: /7天内到期.*1.*点击定位/ }))
   expect(within(projectList).getByText('即将到期')).toBeVisible()
   expect(within(projectList).queryByText('稍后到期')).not.toBeInTheDocument()
+})
+
+test('automatically positions the gantt chart on today', async () => {
+  const state = createInitialState()
+  const today = toStageDate(new Date())
+  const scrollTo = vi.fn()
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrollTo })
+
+  render(
+    <ProjectStageBoard
+      title={state.stageBoardTitle}
+      labels={state.stageLabels}
+      projects={[{
+        id: 'long-project',
+        name: '跨年度项目',
+        stageIndex: 3,
+        createdAt: `${addStageDays(today, -180)}T00:00:00.000Z`,
+        designStart: addStageDays(today, -180),
+        designEnd: addStageDays(today, 30),
+      }]}
+      onTitleChange={vi.fn()}
+      onLabelsChange={vi.fn()}
+      onCreate={vi.fn()}
+      onUpdate={vi.fn()}
+      onDelete={vi.fn()}
+      onStageChange={vi.fn()}
+    />,
+  )
+
+  await waitFor(() => expect(scrollTo).toHaveBeenCalled())
+  expect(scrollTo.mock.calls.at(-1)?.[0].left).toBeGreaterThan(0)
 })
