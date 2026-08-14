@@ -69,3 +69,31 @@ test('marks the current task complete from the project editor', async () => {
 
   expect(onUpdate).toHaveBeenCalledWith('stage-1', expect.objectContaining({ taskCompleted: true }))
 })
+
+test('adds and saves a custom stage name', async () => {
+  const user = userEvent.setup()
+  const state = createInitialState()
+  const onLabelsChange = vi.fn()
+  render(
+    <ProjectStageBoard
+      title={state.stageBoardTitle}
+      labels={state.stageLabels}
+      projects={[]}
+      onTitleChange={vi.fn()}
+      onLabelsChange={onLabelsChange}
+      onCreate={vi.fn()}
+      onUpdate={vi.fn()}
+      onDelete={vi.fn()}
+      onStageChange={vi.fn()}
+    />,
+  )
+
+  await user.click(screen.getByRole('button', { name: '编辑阶段' }))
+  const editor = screen.getByRole('dialog', { name: '编辑阶段名称' })
+  await user.click(within(editor).getByRole('button', { name: '添加阶段名称' }))
+  await user.clear(within(editor).getByRole('textbox', { name: '阶段 16' }))
+  await user.type(within(editor).getByRole('textbox', { name: '阶段 16' }), '竣工摄影')
+  await user.click(within(editor).getByRole('button', { name: '保存阶段名称' }))
+
+  expect(onLabelsChange).toHaveBeenCalledWith([...state.stageLabels, '竣工摄影'])
+})

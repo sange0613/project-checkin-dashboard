@@ -28,7 +28,7 @@ function numberValue(value: unknown, fallback = 0): number {
 
 function stageIndexValue(value: unknown): number {
   if (typeof value !== 'number' || !Number.isInteger(value)) return 0
-  return Math.min(14, Math.max(0, value))
+  return Math.min(29, Math.max(0, value))
 }
 
 function stampFrom(value: Record<string, unknown>): VersionStamp {
@@ -242,6 +242,7 @@ export function createSyncStateFromAppState(state: AppState): SyncState {
     title: setting(state.title),
     theme: setting(state.theme),
     stageBoardTitle: setting(state.stageBoardTitle),
+    stageLabels: setting(state.stageLabels),
     ...Object.fromEntries(state.stageLabels.map((label, index) => [`stageLabel:${index}`, setting(label)])),
     ...Object.fromEntries(state.randomCategories.map((category) => [`categoryName:${category.id}`, setting(category.name)])),
   }
@@ -408,12 +409,18 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     })
   }
   const dailyRandomResults = Object.fromEntries(resultsByDate) as AppState['dailyRandomResults']
+  const syncedStageLabels = sync.settings.stageLabels?.value
+  const stageLabels = Array.isArray(syncedStageLabels) && syncedStageLabels.length
+    ? syncedStageLabels.slice(0, 30)
+    : Array.from({ length: 15 }, (_, index) =>
+      settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''),
+    )
   const stageProjects = [...sync.stageProjects]
     .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
-    .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => project)
-  const stageLabels = Array.from({ length: 15 }, (_, index) =>
-    settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''),
-  )
+    .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => ({
+      ...project,
+      stageIndex: Math.min(project.stageIndex, Math.max(0, stageLabels.length - 1)),
+    }))
 
   return {
     ...current,

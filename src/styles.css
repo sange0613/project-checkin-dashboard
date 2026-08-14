@@ -214,10 +214,12 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-design-period i { width: 10px; height: 1px; background: #c7c7c1; }
 .stage-current-stage { min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 9px; }
 .stage-current-stage span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stage-portfolio-rail { position: relative; height: 28px; display: grid; grid-template-columns: repeat(15, 1fr); align-items: center; }
+.stage-portfolio-rail { position: relative; height: 32px; display: grid; align-items: center; isolation: isolate; }
 .stage-portfolio-rail > span { position: absolute; left: 3%; right: 3%; height: 3px; background: #e9e9e4; }
-.stage-portfolio-rail button { position: relative; z-index: 1; width: 100%; height: 28px; padding: 0; border: 0; background: transparent; cursor: pointer; }
-.stage-portfolio-rail button::after { content: ""; position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #d2d2cc; transform: translate(-50%, -50%); }
+.stage-portfolio-rail button { position: relative; z-index: 1; width: 100%; height: 32px; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+.stage-portfolio-rail button::after { content: ""; position: absolute; top: 50%; left: 50%; width: 7px; height: 7px; border-radius: 50%; background: #d2d2cc; transform: translate(-50%, -50%); transition: width .12s ease, height .12s ease, background .12s ease, box-shadow .12s ease; }
+.stage-portfolio-rail button:hover::after,
+.stage-portfolio-rail button:focus-visible::after { width: 12px; height: 12px; background: #8b8b85; box-shadow: 0 0 0 3px var(--theme-surface); }
 .stage-portfolio-rail button.done::after { background: #74746e; }
 .stage-portfolio-rail button.current::after { width: 15px; height: 15px; background: #292927; }
 .stage-portfolio-rail[data-completed="true"] > span,
@@ -266,6 +268,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-name-editor-list label > span { margin: 0; font: 600 8px var(--font-ui); }
 .stage-name-editor-list input { height: 32px; }
 .stage-name-editor-list small { color: #999993; text-align: right; font: 600 8px var(--font-ui); }
+.stage-name-add { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; border: 1px dashed #d8d8d2; border-radius: 9px; background: transparent; color: #777771; cursor: pointer; font-size: 11px; }
+.stage-name-add:hover { border-color: #999993; color: #222220; }
 .activity-section { margin-top: 36px; padding: 28px 0 12px; border-top: 1px solid #eeeeea; }
 .activity-mobile-overview { display: none; }
 .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
@@ -536,6 +540,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .stage-editor select:focus { border-color: #777770; box-shadow: 0 0 0 3px #30302d; }
 [data-theme="dark"] .stage-task-complete-toggle { border-color: #444440; color: #b8b8b2; }
 [data-theme="dark"] .stage-task-complete-toggle[data-active="true"] { border-color: #68aaf5; background: #213c5c; color: #a9d0ff; }
+[data-theme="dark"] .stage-name-add { border-color: #4a4a45; color: #aaa9a2; }
+[data-theme="dark"] .stage-name-add:hover { border-color: #777770; color: #eeeeea; }
 [data-theme="dark"] .activity-mobile-grid i[data-future="true"] { background: #282826; }
 [data-theme="dark"] .new-project-button,
 [data-theme="dark"] .primary-button { background: #eeeeea; color: #222220; border-color: #eeeeea; }

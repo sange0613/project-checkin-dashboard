@@ -18,6 +18,10 @@ export const PROJECT_STAGES = [
   { name: '设计跟踪服务完结', shortName: '服务完结', percent: 100 },
 ] as const
 
+export function stagePercent(stageIndex: number): number {
+  return PROJECT_STAGES[stageIndex]?.percent ?? 100
+}
+
 export function createStageProject(name: string, id: string): StageProject {
   const now = new Date()
   const today = toStageDate(now)
