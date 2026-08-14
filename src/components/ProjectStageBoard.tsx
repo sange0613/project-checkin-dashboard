@@ -1,112 +1,249 @@
-import { Plus, Trash2 } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { PROJECT_STAGES } from '../domain/projectStages'
-import type { StageProject } from '../domain/types'
+import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { ArrowDownUp, CalendarDays, Check, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import {
+  PROJECT_STAGES,
+  addStageDays,
+  createStageProjectDraft,
+  hydrateStageProject,
+  stageDayDiff,
+  toStageDate,
+} from '../domain/projectStages'
+import type { StageProject, StageProjectDraft } from '../domain/types'
 import { EditableText } from './EditableText'
 
-type BoardProps = {
+type Props = {
   title: string
   labels: string[]
   projects: StageProject[]
   onTitleChange: (title: string) => void
-  onLabelChange: (index: number, label: string) => void
+  onLabelsChange: (labels: string[]) => void
+  onCreate: (draft: StageProjectDraft) => void
+  onUpdate: (id: string, draft: StageProjectDraft) => void
+  onDelete: (id: string) => void
   onStageChange: (id: string, stageIndex: number) => void
 }
 
-export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLabelChange, onStageChange }: BoardProps) {
-  const [mobileDetailed, setMobileDetailed] = useState(false)
+type Filter = 'all' | 'active' | 'complete'
+type Sort = 'updated' | 'progress' | 'designStart'
+type SortDirection = 'asc' | 'desc'
+
+function shortDate(value: string) {
+  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(`${value}T00:00:00`))
+}
+
+function dateRange(start: string, end: string) {
+  const length = Math.max(1, Math.min(730, stageDayDiff(start, end) + 1))
+  return Array.from({ length }, (_, index) => addStageDays(start, index))
+}
+
+function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: string[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const hydratedProjects = useMemo(() => projects.map(hydrateStageProject), [projects])
+  const today = toStageDate(new Date())
+  const chart = useMemo(() => {
+    if (!hydratedProjects.length) return null
+    const starts = [today, ...hydratedProjects.map((project) => project.designStart)].sort()
+    const ends = [today, ...hydratedProjects.map((project) => project.designEnd)].sort()
+    const start = starts[0]
+    const end = ends.at(-1) ?? start
+    return { start, end, days: dateRange(start, end) }
+  }, [hydratedProjects, today])
+
+  if (!chart) return <div className="stage-gantt-empty">添加项目后显示排期甘特图</div>
+  const dayWidth = 24
+  const labelWidth = 168
+  const chartWidth = chart.days.length * dayWidth
+  const todayIndex = chart.days.indexOf(today)
+  const locateToday = () => {
+    if (!scrollRef.current || todayIndex < 0) return
+    scrollRef.current.scrollTo({ left: Math.max(0, labelWidth + todayIndex * dayWidth - scrollRef.current.clientWidth / 2), behavior: 'smooth' })
+  }
 
   return (
-    <section className="stage-board-section">
-      <div className="stage-section-heading">
-        <EditableText value={title} ariaLabel="进度视图标题" onSave={onTitleChange} className="stage-board-title" />
-        <span>{projects.length} 个项目</span>
+    <section className="stage-gantt-section" aria-label="项目排期">
+      <div className="stage-gantt-heading">
+        <div><h3>项目排期</h3><p>浅色为设计周期，深色为当前任务</p></div>
+        <div><span>{shortDate(chart.start)} — {shortDate(chart.end)}</span><button type="button" onClick={locateToday}><CalendarDays size={14} />定位今天</button></div>
       </div>
-      <div className="stage-mobile-overview">
-        {projects.map((project) => {
-          const stage = PROJECT_STAGES[project.stageIndex] ?? PROJECT_STAGES[0]
-          return (
-            <button type="button" key={project.id} className="stage-mobile-project" onClick={() => setMobileDetailed(true)}>
-              <span className="stage-mobile-copy"><strong>{project.name}</strong><small>{labels[project.stageIndex] ?? stage.name}</small></span>
-              <span className="stage-mobile-progress"><i style={{ width: `${stage.percent}%` }} /></span>
-              <b>{stage.percent}%</b>
-            </button>
-          )
-        })}
-        {!projects.length ? <p>还没有进度项目</p> : null}
-        {projects.length ? (
-          <button type="button" className="stage-detail-toggle" onClick={() => setMobileDetailed((value) => !value)}>
-            {mobileDetailed ? '收起详细阶段' : '展开详细阶段'}
-          </button>
-        ) : null}
-      </div>
-      <div className="stage-scroll" data-mobile-expanded={mobileDetailed || undefined}>
-        <div className="stage-grid">
-          <div className="stage-project-header">项目</div>
-          <div className="stage-axis-header">
-            {PROJECT_STAGES.map((stage, index) => (
-              <span key={stage.name} title={stage.name}>
-                <EditableText value={labels[index]} ariaLabel={`阶段简称${index + 1}`} onSave={(label) => onLabelChange(index, label)} className="stage-label" />
-              </span>
-            ))}
+      <div className="stage-gantt-scroll" ref={scrollRef}>
+        <div className="stage-gantt" style={{ width: labelWidth + chartWidth }}>
+          <div className="stage-gantt-dates" style={{ paddingLeft: labelWidth }}>
+            {chart.days.map((date) => {
+              const value = new Date(`${date}T00:00:00`)
+              const isMonth = value.getDate() === 1 || date === chart.start
+              return <span key={date} data-weekend={value.getDay() === 0 || value.getDay() === 6 || undefined} data-today={date === today || undefined} title={date} style={{ width: dayWidth }}>{isMonth ? `${value.getMonth() + 1}月` : value.getDate()}</span>
+            })}
           </div>
-          <div className="stage-percent-header">进度</div>
-          {projects.map((project) => {
-            const lineWidth = (project.stageIndex / PROJECT_STAGES.length) * 100
+          {todayIndex >= 0 ? <i className="stage-gantt-today" style={{ left: labelWidth + todayIndex * dayWidth + dayWidth / 2 }} /> : null}
+          {hydratedProjects.map((project) => {
+            const designLeft = labelWidth + stageDayDiff(chart.start, project.designStart) * dayWidth
+            const designWidth = Math.max(dayWidth, (stageDayDiff(project.designStart, project.designEnd) + 1) * dayWidth)
+            const taskLeft = labelWidth + stageDayDiff(chart.start, project.taskStart) * dayWidth
+            const taskWidth = Math.max(dayWidth, (stageDayDiff(project.taskStart, project.taskEnd) + 1) * dayWidth)
             return (
-              <div className="stage-row" key={project.id}>
-                <div className="stage-project-name"><span>{project.name}</span></div>
-                <div className="stage-track">
-                  <i className="stage-line" style={{ width: `${lineWidth}%` }} />
-                  {PROJECT_STAGES.map((stage, index) => (
-                    <button key={stage.name} aria-label={`${project.name} ${stage.name}`} title={stage.name} onClick={() => onStageChange(project.id, index)} />
-                  ))}
-                </div>
-                <div className="stage-row-end"><strong>{PROJECT_STAGES[project.stageIndex].percent}%</strong></div>
+              <div className="stage-gantt-row" key={project.id}>
+                <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span><strong>{project.name}</strong><small>{labels[project.stageIndex]}</small></span></div>
+                <div className="stage-gantt-grid" style={{ left: labelWidth, width: chartWidth, backgroundSize: `${dayWidth}px 100%` }} />
+                <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }} />
+                <div className="stage-task-bar" title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}`} style={{ left: taskLeft, width: taskWidth }}><span>{labels[project.stageIndex]}</span></div>
               </div>
             )
           })}
-          {!projects.length && <div className="stage-empty">在最下方添加进度项目</div>}
         </div>
       </div>
     </section>
   )
 }
 
-type ManagerProps = {
-  projects: StageProject[]
-  onAdd: (name: string) => void
-  onRename: (id: string, name: string) => void
-  onDelete: (id: string) => void
+function StageRail({ project, labels, onChange }: { project: StageProject; labels: string[]; onChange: (stageIndex: number) => void }) {
+  return (
+    <div className="stage-portfolio-rail" aria-label={`${project.name} 当前阶段：${labels[project.stageIndex]}`}>
+      <span />
+      {PROJECT_STAGES.map((stage, index) => (
+        <button
+          type="button"
+          key={stage.name}
+          className={index < project.stageIndex ? 'done' : index === project.stageIndex ? 'current' : ''}
+          aria-label={`将 ${project.name} 设为${labels[index]}`}
+          title={`${index + 1}. ${labels[index]}`}
+          onClick={(event) => { event.stopPropagation(); onChange(index) }}
+        >
+          {index === project.stageIndex ? <i>{index + 1}</i> : null}
+        </button>
+      ))}
+    </div>
+  )
 }
 
-export function StageProjectManager({ projects, onAdd, onRename, onDelete }: ManagerProps) {
-  const [name, setName] = useState('')
-  const detailsRef = useRef<HTMLDetailsElement>(null)
-  const add = () => {
-    const next = name.trim()
-    if (!next) return
-    onAdd(next)
-    setName('')
-    if (detailsRef.current) detailsRef.current.open = false
+function ProjectEditor({ project, labels, onClose, onSave, onDelete }: { project?: StageProject; labels: string[]; onClose: () => void; onSave: (draft: StageProjectDraft) => void; onDelete?: () => void }) {
+  const [draft, setDraft] = useState(() => createStageProjectDraft(project))
+  const update = <K extends keyof StageProjectDraft>(key: K, value: StageProjectDraft[K]) => setDraft((current) => ({ ...current, [key]: value }))
+  const datesValid = draft.designStart <= draft.designEnd && draft.taskStart <= draft.taskEnd
+  const canSave = Boolean(draft.name.trim()) && datesValid
+  const stage = PROJECT_STAGES[draft.stageIndex] ?? PROJECT_STAGES[0]
+
+  return (
+    <div className="stage-drawer-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <aside className="stage-editor" role="dialog" aria-modal="true" aria-label={project ? '编辑阶段项目' : '新建阶段项目'}>
+        <header><div><h2>{project ? '编辑项目' : '新建项目'}</h2><p>{project?.name || '录入一个新的设计项目'}</p></div><button type="button" aria-label="关闭阶段项目编辑" onClick={onClose}><X size={19} /></button></header>
+        <div className="stage-editor-form">
+          <label><span>项目名称</span><input autoFocus value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="例如：云栖住宅" /></label>
+          <div className="stage-field-pair">
+            <label><span>客户</span><input value={draft.client} onChange={(event) => update('client', event.target.value)} placeholder="客户称呼" /></label>
+            <label><span>地点</span><input value={draft.location} onChange={(event) => update('location', event.target.value)} placeholder="城市 / 区域" /></label>
+          </div>
+          <fieldset><legend>设计周期</legend><label><span>开始日期</span><input type="date" value={draft.designStart} onChange={(event) => update('designStart', event.target.value)} /></label><label><span>结束日期</span><input type="date" min={draft.designStart} value={draft.designEnd} onChange={(event) => update('designEnd', event.target.value)} /></label></fieldset>
+          <label><span>当前阶段</span><div className="stage-select-wrap"><select value={draft.stageIndex} onChange={(event) => update('stageIndex', Number(event.target.value))}>{PROJECT_STAGES.map((item, index) => <option key={item.name} value={index}>{index + 1}. {labels[index]}</option>)}</select><ChevronDown size={16} /></div></label>
+          <div className="stage-editor-progress"><div><strong>{stage.percent}%</strong><span>{labels[draft.stageIndex]}</span></div><div><i style={{ width: `${stage.percent}%` }} /></div></div>
+          <fieldset><legend>当前任务周期</legend><label><span>开始日期</span><input type="date" value={draft.taskStart} onChange={(event) => update('taskStart', event.target.value)} /></label><label><span>结束日期</span><input type="date" min={draft.taskStart} value={draft.taskEnd} onChange={(event) => update('taskEnd', event.target.value)} /></label></fieldset>
+          {!datesValid ? <p className="stage-date-error">结束日期不能早于开始日期</p> : null}
+          <label><span>备注</span><textarea rows={5} value={draft.note} onChange={(event) => update('note', event.target.value.slice(0, 200))} placeholder="记录下一步或待确认事项" /><small>{draft.note.length}/200</small></label>
+        </div>
+        <footer><button type="button" className="primary-button" disabled={!canSave} onClick={() => onSave({ ...draft, name: draft.name.trim() })}><Check size={16} />保存</button>{onDelete ? <button type="button" className="stage-delete-button" onClick={onDelete}><Trash2 size={15} />删除项目</button> : null}</footer>
+      </aside>
+    </div>
+  )
+}
+
+function StageNameEditor({ labels, onClose, onSave }: { labels: string[]; onClose: () => void; onSave: (labels: string[]) => void }) {
+  const [draft, setDraft] = useState(labels)
+  const valid = draft.every((label) => label.trim())
+  return (
+    <div className="stage-drawer-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <aside className="stage-editor stage-name-editor" role="dialog" aria-modal="true" aria-label="编辑阶段名称">
+        <header><div><h2>编辑阶段</h2><p>修改后应用到全部项目</p></div><button type="button" aria-label="关闭阶段名称编辑" onClick={onClose}><X size={19} /></button></header>
+        <div className="stage-name-editor-list">
+          {draft.map((label, index) => <label key={PROJECT_STAGES[index].name}><span>{String(index + 1).padStart(2, '0')}</span><input aria-label={`阶段 ${index + 1}`} value={label} onChange={(event) => setDraft((current) => current.map((item, currentIndex) => currentIndex === index ? event.target.value.slice(0, 16) : item))} /><small>{PROJECT_STAGES[index].percent}%</small></label>)}
+        </div>
+        <footer><button type="button" className="primary-button" disabled={!valid} onClick={() => onSave(draft.map((label) => label.trim()))}><Check size={16} />保存阶段名称</button><button type="button" className="ghost-button" onClick={() => setDraft(PROJECT_STAGES.map((stage) => stage.shortName))}>恢复默认名称</button></footer>
+      </aside>
+    </div>
+  )
+}
+
+export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLabelsChange, onCreate, onUpdate, onDelete, onStageChange }: Props) {
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const [filter, setFilter] = useState<Filter>('all')
+  const [sort, setSort] = useState<Sort>('updated')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [editingId, setEditingId] = useState<string | 'new' | null>(null)
+  const [stageEditorOpen, setStageEditorOpen] = useState(false)
+  const hydratedProjects = useMemo(() => projects.map(hydrateStageProject), [projects])
+  const visibleProjects = useMemo(() => {
+    const needle = deferredQuery.trim().toLocaleLowerCase()
+    const direction = sortDirection === 'asc' ? 1 : -1
+    return [...hydratedProjects]
+      .filter((project) => filter === 'all' || (filter === 'complete' ? project.stageIndex === PROJECT_STAGES.length - 1 : project.stageIndex < PROJECT_STAGES.length - 1))
+      .filter((project) => !needle || `${project.name} ${project.client} ${project.location}`.toLocaleLowerCase().includes(needle))
+      .sort((left, right) => {
+        if (sort === 'progress') return (left.stageIndex - right.stageIndex) * direction
+        if (sort === 'designStart') return left.designStart.localeCompare(right.designStart) * direction
+        return (new Date(left.modifiedAt).getTime() - new Date(right.modifiedAt).getTime()) * direction
+      })
+  }, [deferredQuery, filter, hydratedProjects, sort, sortDirection])
+  const active = hydratedProjects.filter((project) => project.stageIndex < PROJECT_STAGES.length - 1).length
+  const complete = hydratedProjects.length - active
+  const today = toStageDate(new Date())
+  const weekEnd = addStageDays(today, 7)
+  const dueSoon = hydratedProjects.filter((project) => project.stageIndex < PROJECT_STAGES.length - 1 && project.taskEnd >= today && project.taskEnd <= weekEnd).length
+  const average = hydratedProjects.length ? Math.round(hydratedProjects.reduce((sum, project) => sum + PROJECT_STAGES[project.stageIndex].percent, 0) / hydratedProjects.length) : 0
+  const editingProject = editingId && editingId !== 'new' ? projects.find((project) => project.id === editingId) : undefined
+  const selectSort = (next: Sort, defaultDirection: SortDirection = 'asc') => {
+    if (sort === next) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
+    else { setSort(next); setSortDirection(defaultDirection) }
   }
 
   return (
-    <details ref={detailsRef} className="bottom-panel">
-      <summary>管理进度项目</summary>
-      <div className="stage-add">
-        <input aria-label="阶段项目名称" value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && add()} placeholder="新增项目" />
-        <button onClick={add} disabled={!name.trim()}><Plus size={13} />添加</button>
+    <section className="stage-portfolio-section" aria-label="设计项目管理">
+      <div className="stage-portfolio-heading">
+        <div><EditableText value={title} ariaLabel="进度视图标题" onSave={onTitleChange} className="stage-portfolio-title" /><p>项目阶段、排期与当前任务</p></div>
+        <button type="button" className="primary-button" onClick={() => setEditingId('new')}><Plus size={15} />新建项目</button>
       </div>
-      <div className="stage-manage-list">
-        {projects.map((project) => (
-          <div key={project.id}>
-            <EditableText value={project.name} ariaLabel={`${project.name}阶段项目名称`} onSave={(value) => onRename(project.id, value)} />
-            <button aria-label={`删除阶段项目 ${project.name}`} onClick={() => onDelete(project.id)}><Trash2 size={13} /></button>
-          </div>
-        ))}
-        {!projects.length && <p>还没有项目</p>}
+
+      <div className="stage-portfolio-tools">
+        <label><Search size={15} /><input aria-label="搜索阶段项目" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目、客户或地点" /></label>
+        <div className="stage-select-wrap"><select aria-label="筛选阶段项目" value={filter} onChange={(event) => setFilter(event.target.value as Filter)}><option value="all">全部项目</option><option value="active">进行中</option><option value="complete">已完成</option></select><ChevronDown size={14} /></div>
+        <button type="button" className="ghost-button" onClick={() => selectSort(sort === 'updated' ? 'progress' : 'updated', 'desc')}><ArrowDownUp size={14} />{sort === 'progress' ? '进度优先' : '最近更新'}</button>
       </div>
-    </details>
+
+      <div className="stage-summary" aria-label="项目数据总览">
+        <button type="button" data-active={filter === 'all' || undefined} onClick={() => setFilter('all')}><span>全部项目</span><strong>{hydratedProjects.length}</strong><small>所有项目</small></button>
+        <button type="button" data-active={filter === 'active' || undefined} onClick={() => setFilter('active')}><span>进行中</span><strong>{active}</strong><small>正在推进</small></button>
+        <button type="button" data-active={filter === 'complete' || undefined} onClick={() => setFilter('complete')}><span>已完成</span><strong>{complete}</strong><small>服务完结</small></button>
+        <div><span>7天内到期</span><strong>{dueSoon}</strong><small>当前任务</small></div>
+        <div><span>平均进度</span><strong>{average}<i>%</i></strong><small>全部项目</small></div>
+      </div>
+
+      <ProjectGantt projects={visibleProjects} labels={labels} />
+
+      <div className="stage-overview">
+        <div><strong>{visibleProjects.length}</strong> 个项目 <span>·</span> {active} 个进行中 <span>·</span> {complete} 个已完成</div>
+        <button type="button" onClick={() => setStageEditorOpen(true)}><Pencil size={12} />编辑阶段</button>
+      </div>
+      <div className="stage-legend" aria-label="阶段图例">{PROJECT_STAGES.map((stage, index) => <span key={stage.name}><i>{index + 1}</i>{labels[index]}</span>)}</div>
+
+      <div className="stage-project-table" aria-label="阶段项目列表">
+        <div className="stage-project-head"><span>项目</span><button type="button" onClick={() => selectSort('designStart')}>设计周期<ArrowDownUp size={11} /></button><button type="button" onClick={() => selectSort('progress')}>当前阶段<ArrowDownUp size={11} /></button><span>当前任务</span><span>阶段进度</span><span>进度</span><span /></div>
+        {visibleProjects.map((project) => {
+          const stage = PROJECT_STAGES[project.stageIndex]
+          return (
+            <article className="stage-project-row" key={project.id} onClick={() => setEditingId(project.id)}>
+              <div className="stage-project-name"><strong>{project.name}</strong><span>{[project.client, project.location].filter(Boolean).join(' / ') || '未填写客户与地点'}</span></div>
+              <div className="stage-design-period"><span>{shortDate(project.designStart)}</span><i /><span>{shortDate(project.designEnd)}</span></div>
+              <div className="stage-current-stage"><i>{project.stageIndex + 1}</i><span>{labels[project.stageIndex]}</span></div>
+              <time>{shortDate(project.taskStart)} — {shortDate(project.taskEnd)}</time>
+              <StageRail project={project} labels={labels} onChange={(index) => onStageChange(project.id, index)} />
+              <strong className="stage-percent">{stage.percent}%</strong>
+              <button type="button" className="stage-edit-button" aria-label={`编辑阶段项目 ${project.name}`} onClick={(event) => { event.stopPropagation(); setEditingId(project.id) }}><Pencil size={14} /></button>
+            </article>
+          )
+        })}
+        {!visibleProjects.length ? <div className="stage-project-empty"><p>{projects.length ? '没有匹配的项目' : '还没有设计项目'}</p>{projects.length ? <button type="button" onClick={() => { setQuery(''); setFilter('all') }}>查看全部</button> : <button type="button" onClick={() => setEditingId('new')}>添加第一个项目</button>}</div> : null}
+      </div>
+
+      {editingId ? <ProjectEditor key={editingId} project={editingProject} labels={labels} onClose={() => setEditingId(null)} onSave={(draft) => { if (editingProject) onUpdate(editingProject.id, draft); else onCreate(draft); setEditingId(null) }} onDelete={editingProject ? () => { if (window.confirm(`删除“${editingProject.name}”？`)) { onDelete(editingProject.id); setEditingId(null) } } : undefined} /> : null}
+      {stageEditorOpen ? <StageNameEditor labels={labels} onClose={() => setStageEditorOpen(false)} onSave={(nextLabels) => { onLabelsChange(nextLabels); setStageEditorOpen(false) }} /> : null}
+    </section>
   )
 }

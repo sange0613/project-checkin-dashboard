@@ -29,7 +29,17 @@ export type StageProject = {
   name: string
   stageIndex: number
   createdAt: string
+  client?: string
+  location?: string
+  designStart?: string
+  designEnd?: string
+  taskStart?: string
+  taskEnd?: string
+  note?: string
+  modifiedAt?: string
 }
+
+export type StageProjectDraft = Omit<Required<StageProject>, 'id' | 'createdAt' | 'modifiedAt'>
 
 export type VersionStamp = { updatedAt: number; updatedBy: string }
 export type Versioned<T> = T & VersionStamp

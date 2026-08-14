@@ -45,6 +45,29 @@ describe('canonical cloud sync merge', () => {
     expect(sync.stageProjects.map(({ stageIndex }) => stageIndex)).toEqual([0, 14, 0])
   })
 
+  it('keeps the migrated project details through the unified sync state', () => {
+    const current = state({
+      stageProjects: [{
+        id: 'stage-detail',
+        name: '云栖住宅',
+        stageIndex: 5,
+        createdAt: '2026-08-01T00:00:00.000Z',
+        client: '林先生',
+        location: '杭州',
+        designStart: '2026-08-01',
+        designEnd: '2026-11-01',
+        taskStart: '2026-08-12',
+        taskEnd: '2026-08-20',
+        note: '等待模型确认',
+        modifiedAt: '2026-08-14T00:00:00.000Z',
+      }],
+    })
+
+    const visible = applySyncStateToAppState(createInitialState(), createSyncStateFromAppState(current))
+
+    expect(visible.stageProjects[0]).toEqual(current.stageProjects[0])
+  })
+
   it('materializes all stage label positions without compacting sparse settings', () => {
     const current = createInitialState()
     const sync = normalizeSyncState({

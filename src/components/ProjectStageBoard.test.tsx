@@ -1,23 +1,59 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { vi } from 'vitest'
 import { createInitialState } from '../domain/types'
 import { ProjectStageBoard } from './ProjectStageBoard'
 
-test('shows a compact mobile overview before the detailed stage grid', async () => {
-  const user = userEvent.setup()
+function renderBoard() {
   const state = createInitialState()
+  const onCreate = vi.fn()
+  const onUpdate = vi.fn()
+  const onStageChange = vi.fn()
   render(
     <ProjectStageBoard
       title={state.stageBoardTitle}
       labels={state.stageLabels}
       projects={[{ id: 'stage-1', name: '住宅设计', stageIndex: 6, createdAt: '2026-08-01T00:00:00.000Z' }]}
-      onTitleChange={() => undefined}
-      onLabelChange={() => undefined}
-      onStageChange={() => undefined}
+      onTitleChange={vi.fn()}
+      onLabelsChange={vi.fn()}
+      onCreate={onCreate}
+      onUpdate={onUpdate}
+      onDelete={vi.fn()}
+      onStageChange={onStageChange}
     />,
   )
+  return { onCreate, onUpdate, onStageChange }
+}
 
-  expect(document.querySelector('.stage-mobile-project')).toHaveTextContent('住宅设计二次方案65%')
-  await user.click(screen.getByRole('button', { name: '展开详细阶段' }))
-  expect(document.querySelector('.stage-scroll')).toHaveAttribute('data-mobile-expanded', 'true')
+test('shows the migrated portfolio summary, gantt and project stage list', () => {
+  renderBoard()
+
+  const summary = screen.getByRole('generic', { name: '项目数据总览' })
+  expect(within(summary).getByRole('button', { name: /全部项目.*1.*所有项目/ })).toBeVisible()
+  expect(screen.getByRole('region', { name: '项目排期' })).toBeVisible()
+  const projectList = screen.getByRole('generic', { name: '阶段项目列表' })
+  expect(within(projectList).getByText('住宅设计')).toBeVisible()
+  expect(within(projectList).getByText('二次方案')).toBeVisible()
+  expect(within(projectList).getByText('65%')).toBeVisible()
+})
+
+test('creates a detailed project from the side editor', async () => {
+  const user = userEvent.setup()
+  const { onCreate } = renderBoard()
+
+  await user.click(screen.getByRole('button', { name: '新建项目' }))
+  const editor = screen.getByRole('dialog', { name: '新建阶段项目' })
+  await user.type(within(editor).getByRole('textbox', { name: '项目名称' }), '云栖住宅')
+  await user.type(within(editor).getByRole('textbox', { name: '客户' }), '林先生')
+  await user.click(within(editor).getByRole('button', { name: '保存' }))
+
+  expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ name: '云栖住宅', client: '林先生', stageIndex: 0 }))
+})
+
+test('changes a project stage directly from the progress rail', async () => {
+  const user = userEvent.setup()
+  const { onStageChange } = renderBoard()
+
+  await user.click(screen.getByRole('button', { name: '将 住宅设计 设为现场施工' }))
+  expect(onStageChange).toHaveBeenCalledWith('stage-1', 13)
 })

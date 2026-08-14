@@ -6,13 +6,12 @@ import { ProjectGrid } from './components/ProjectGrid'
 import { DailyRandomPanel } from './components/DailyRandomPanel'
 import { RandomPromptManager } from './components/RandomPromptManager'
 import { RandomHistory } from './components/RandomHistory'
-import { ProjectStageBoard, StageProjectManager } from './components/ProjectStageBoard'
+import { ProjectStageBoard } from './components/ProjectStageBoard'
 import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
 import { SuiteSyncPanel } from './components/SuiteSyncPanel'
 import { ShortcutBar } from './components/ShortcutBar'
-import type { AppState, Project, ViewMode } from './domain/types'
+import type { AppState, Project, StageProjectDraft, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
-import { createStageProject } from './domain/projectStages'
 import { exportState, importState } from './storage/dataTransfer'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
 import { useSuiteSync } from './hooks/useSuiteSync'
@@ -191,15 +190,25 @@ export default function App() {
       : category),
   }))
 
-  const addStageProject = (name: string) => update((current) => ({ ...current, stageProjects: [...current.stageProjects, createStageProject(name, makeId())] }))
-  const renameStageProject = (id: string, name: string) => update((current) => ({ ...current, stageProjects: current.stageProjects.map((project) => project.id === id ? { ...project, name } : project) }))
-  const setStageProjectStage = (id: string, stageIndex: number) => update((current) => ({ ...current, stageProjects: current.stageProjects.map((project) => project.id === id ? { ...project, stageIndex } : project) }))
+  const addStageProject = (draft: StageProjectDraft) => update((current) => ({
+    ...current,
+    stageProjects: [...current.stageProjects, { ...draft, id: makeId(), createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() }],
+  }))
+  const updateStageProject = (id: string, draft: StageProjectDraft) => update((current) => ({
+    ...current,
+    stageProjects: current.stageProjects.map((project) => project.id === id
+      ? { ...project, ...draft, modifiedAt: new Date().toISOString() }
+      : project),
+  }))
+  const setStageProjectStage = (id: string, stageIndex: number) => update((current) => ({
+    ...current,
+    stageProjects: current.stageProjects.map((project) => project.id === id
+      ? { ...project, stageIndex, modifiedAt: new Date().toISOString() }
+      : project),
+  }))
   const deleteStageProject = (id: string) => update((current) => ({ ...current, stageProjects: current.stageProjects.filter((project) => project.id !== id) }))
   const renameStageBoard = (stageBoardTitle: string) => update((current) => ({ ...current, stageBoardTitle }))
-  const renameStageLabel = (index: number, label: string) => update((current) => ({
-    ...current,
-    stageLabels: current.stageLabels.map((currentLabel, currentIndex) => currentIndex === index ? label : currentLabel),
-  }))
+  const renameStageLabels = (stageLabels: string[]) => update((current) => ({ ...current, stageLabels }))
   const toggleTheme = () => update((current) => ({ ...current, theme: actualTheme === 'dark' ? 'light' : 'dark' }))
   const openIntegratedTool = (toolId: IntegratedToolId) => {
     setLoadedToolIds((current) => current.includes(toolId) ? current : [...current, toolId])
@@ -289,7 +298,17 @@ export default function App() {
         </div>
 
         <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} />
-        <ProjectStageBoard title={state.stageBoardTitle} labels={state.stageLabels} projects={state.stageProjects} onTitleChange={renameStageBoard} onLabelChange={renameStageLabel} onStageChange={setStageProjectStage} />
+        <ProjectStageBoard
+          title={state.stageBoardTitle}
+          labels={state.stageLabels}
+          projects={state.stageProjects}
+          onTitleChange={renameStageBoard}
+          onLabelsChange={renameStageLabels}
+          onCreate={addStageProject}
+          onUpdate={updateStageProject}
+          onDelete={deleteStageProject}
+          onStageChange={setStageProjectStage}
+        />
         {!visibleProjects.length && (
           <div className="empty-state">
             <div className="empty-mark">日</div>
@@ -320,7 +339,6 @@ export default function App() {
         <div className="bottom-panels">
           <RandomPromptManager categories={state.randomCategories} onAdd={addRandomItem} onRename={renameRandomItem} onDelete={deleteRandomItem} />
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
-          <StageProjectManager projects={state.stageProjects} onAdd={addStageProject} onRename={renameStageProject} onDelete={deleteStageProject} />
         </div>
         <CheckinActivityHeatmap checkins={state.checkins} today={today} />
         <SuiteSyncPanel

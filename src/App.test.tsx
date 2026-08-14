@@ -144,12 +144,13 @@ test('shows quiet import and export controls in the footer', () => {
 
 test('shows the activity heatmap after the bottom management panels', () => {
   render(<App />)
-  const panels = screen.getByText('管理进度项目').closest('.bottom-panels')
+  const panels = screen.getByText('管理随机内容').closest('.bottom-panels')
   const activity = screen.getByRole('region', { name: '打卡活动' })
 
   expect(panels).not.toBeNull()
   if (!panels) throw new Error('Bottom panels are missing')
   expect(panels.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(screen.queryByText('管理进度项目')).not.toBeInTheDocument()
 })
 
 test('keeps sync settings collapsed until requested', async () => {

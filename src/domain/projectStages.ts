@@ -1,4 +1,4 @@
-import type { StageProject } from './types'
+import type { StageProject, StageProjectDraft } from './types'
 
 export const PROJECT_STAGES = [
   { name: '第一次沟通', shortName: '初次沟通', percent: 10 },
@@ -19,5 +19,73 @@ export const PROJECT_STAGES = [
 ] as const
 
 export function createStageProject(name: string, id: string): StageProject {
-  return { id, name, stageIndex: 0, createdAt: new Date().toISOString() }
+  const now = new Date()
+  const today = toStageDate(now)
+  return {
+    id,
+    name,
+    stageIndex: 0,
+    createdAt: now.toISOString(),
+    client: '',
+    location: '',
+    designStart: today,
+    designEnd: addStageDays(today, 90),
+    taskStart: today,
+    taskEnd: addStageDays(today, 7),
+    note: '',
+    modifiedAt: now.toISOString(),
+  }
+}
+
+export function toStageDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function addStageDays(value: string, days: number): string {
+  const date = new Date(`${value}T00:00:00`)
+  date.setDate(date.getDate() + days)
+  return toStageDate(date)
+}
+
+export function stageDayDiff(start: string, end: string): number {
+  return Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 86_400_000)
+}
+
+export function hydrateStageProject(project: StageProject): StageProject & Required<Omit<StageProject, 'id' | 'name' | 'stageIndex' | 'createdAt'>> {
+  const createdDate = /^\d{4}-\d{2}-\d{2}/.exec(project.createdAt)?.[0] ?? toStageDate(new Date())
+  const designStart = project.designStart || createdDate
+  const taskStart = project.taskStart || designStart
+  return {
+    ...project,
+    client: project.client ?? '',
+    location: project.location ?? '',
+    designStart,
+    designEnd: project.designEnd || addStageDays(designStart, 90),
+    taskStart,
+    taskEnd: project.taskEnd || addStageDays(taskStart, 7),
+    note: project.note ?? '',
+    modifiedAt: project.modifiedAt || project.createdAt,
+  }
+}
+
+export function createStageProjectDraft(project?: StageProject): StageProjectDraft {
+  if (project) {
+    const hydrated = hydrateStageProject(project)
+    return {
+      name: hydrated.name,
+      client: hydrated.client,
+      location: hydrated.location,
+      stageIndex: hydrated.stageIndex,
+      designStart: hydrated.designStart,
+      designEnd: hydrated.designEnd,
+      taskStart: hydrated.taskStart,
+      taskEnd: hydrated.taskEnd,
+      note: hydrated.note,
+    }
+  }
+  const today = toStageDate(new Date())
+  return { name: '', client: '', location: '', stageIndex: 0, designStart: today, designEnd: addStageDays(today, 90), taskStart: today, taskEnd: addStageDays(today, 7), note: '' }
 }
