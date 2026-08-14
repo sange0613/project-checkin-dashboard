@@ -2,7 +2,8 @@
   --theme-page: #f4f4f1;
   --theme-surface: #fff;
   --theme-text: #20201e;
-  font-family: "Songti SC", "STSong", "SimSun", serif;
+  --font-ui: "PingFang SC", "苹方-简", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   color: #20201e;
   background: #f4f4f1;
@@ -17,8 +18,8 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--theme-page); color: var(--theme-text); }
-button, input { font: inherit; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--theme-page); color: var(--theme-text); letter-spacing: .01em; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
 
@@ -73,7 +74,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .search-bar button { border: 0; border-radius: 7px; background: #f2f2ef; padding: 7px 10px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
 .search-bar button.active { background: #282826; color: #fff; }
 .period-toolbar { min-height: 75px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.eyebrow { margin: 0 0 7px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; font-size: 10px; color: #aaa9a2; }
+.eyebrow { margin: 0 0 7px; font-family: var(--font-ui); letter-spacing: .12em; font-size: 10px; color: #aaa9a2; }
 .period-toolbar h1 { margin: 0; font-size: clamp(25px, 3vw, 35px); font-weight: 600; letter-spacing: .02em; }
 .period-meta { margin: 6px 0 0; font-size: 12px; color: #767671; }
 .month-navigation, .intensity-legend { display: flex; align-items: center; gap: 7px; }
@@ -91,7 +92,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .project-name-cell, .checkin-cell, .aggregate-cell, .project-menu { min-height: 42px; border-top: 1px solid #f0f0eb; }
 .project-name-cell { position: sticky; left: 0; z-index: 3; display: flex; align-items: center; gap: 9px; padding-right: 12px; background: #fff; }
 .project-dot { width: 6px; height: 6px; border-radius: 50%; background: #292927; flex: none; }
-.lifetime-count, .month-count { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #666660; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lifetime-count, .month-count { font-family: var(--font-ui); color: #666660; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .month-count { width: 38px; text-align: right; flex: none; }
 .lifetime-count { min-width: 24px; margin-right: 4px; text-align: right; }
 .project-name { width: 100%; font-size: 14px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -143,7 +144,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .add-prompt { margin-top: 5px; font-size: 10px; }
 .random-history { padding: 2px 0 20px; }
 .history-row { display: grid; grid-template-columns: 110px repeat(3, 1fr); gap: 16px; padding: 8px 0; border-top: 1px solid #f1f1ed; font-size: 11px; }
-.history-row time { color: #777771; font-family: ui-monospace, monospace; }
+.history-row time { color: #777771; font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
 .random-history p { color: #999; font-size: 11px; }
 .stage-portfolio-section { margin-top: 36px; padding-top: 30px; border-top: 1px solid #eeeeea; }
 .stage-portfolio-heading, .stage-gantt-heading, .stage-overview { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -173,7 +174,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-gantt-heading button, .stage-overview button { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: #777771; cursor: pointer; font: inherit; font-size: 10px; }
 .stage-gantt-scroll { overflow-x: auto; overscroll-behavior-inline: contain; }
 .stage-gantt { position: relative; min-width: 100%; }
-.stage-gantt-dates { height: 34px; display: flex; border-bottom: 1px solid #eeeeea; color: #9b9b95; font: 8px ui-monospace, monospace; }
+.stage-gantt-dates { height: 34px; display: flex; border-bottom: 1px solid #eeeeea; color: #9b9b95; font: 600 8px var(--font-ui); font-variant-numeric: tabular-nums; }
 .stage-gantt-dates span { flex: 0 0 auto; display: grid; place-items: center; border-left: 1px solid #f4f4f1; }
 .stage-gantt-dates span[data-weekend="true"] { background: #fafaf8; }
 .stage-gantt-dates span[data-today="true"] { color: #222220; font-weight: 700; }
@@ -197,7 +198,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-overview span { padding: 0 4px; color: #c2c2bd; }
 .stage-legend { display: flex; gap: 5px; margin: 12px 0; overflow-x: auto; scrollbar-width: none; }
 .stage-legend span { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border: 1px solid #eeeeea; border-radius: 7px; color: #72726c; font-size: 8px; white-space: nowrap; }
-.stage-legend i, .stage-current-stage i { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: #ededE8; color: #555550; font: 7px ui-monospace, monospace; font-style: normal; }
+.stage-legend i, .stage-current-stage i { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: #ededE8; color: #555550; font: 600 7px var(--font-ui); font-style: normal; }
 .stage-project-table { border: 1px solid #eeeeea; border-radius: 12px; overflow: hidden; }
 .stage-project-head, .stage-project-row { display: grid; grid-template-columns: minmax(125px, 1.25fr) 118px minmax(110px, 1fr) 110px minmax(160px, 1.45fr) 46px 30px; align-items: center; gap: 12px; padding: 0 14px; }
 .stage-project-head { min-width: 900px; min-height: 34px; background: #fafaf8; color: #8b8b85; font-size: 8px; }
@@ -218,8 +219,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-portfolio-rail button::after { content: ""; position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #d2d2cc; transform: translate(-50%, -50%); }
 .stage-portfolio-rail button.done::after { background: #74746e; }
 .stage-portfolio-rail button.current::after { width: 15px; height: 15px; background: #292927; }
-.stage-portfolio-rail button i { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; color: #fff; font: 6px ui-monospace, monospace; font-style: normal; }
-.stage-percent { font: 10px ui-monospace, monospace; text-align: right; }
+.stage-portfolio-rail button i { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; color: #fff; font: 600 6px var(--font-ui); font-style: normal; }
+.stage-percent { font: 700 10px var(--font-ui); font-variant-numeric: tabular-nums; text-align: right; }
 .stage-edit-button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #8b8b85; cursor: pointer; }
 .stage-edit-button:hover { background: #eeeeea; color: #222220; }
 .stage-project-empty { padding: 38px 16px; color: #999993; text-align: center; font-size: 11px; }
@@ -245,7 +246,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-editor fieldset legend { grid-column: 1 / -1; }
 .stage-editor-progress { margin: -7px 0 18px; }
 .stage-editor-progress > div:first-child { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
-.stage-editor-progress strong { font: 13px ui-monospace, monospace; }
+.stage-editor-progress strong { font: 700 13px var(--font-ui); font-variant-numeric: tabular-nums; }
 .stage-editor-progress span { color: #777771; font-size: 9px; }
 .stage-editor-progress > div:last-child { height: 4px; border-radius: 4px; background: #ecece7; overflow: hidden; }
 .stage-editor-progress i { display: block; height: 100%; background: #292927; }
@@ -254,9 +255,9 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-delete-button { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #a74740; cursor: pointer; font: inherit; font-size: 10px; }
 .stage-name-editor-list { flex: 1; overflow-y: auto; padding: 14px 26px; }
 .stage-name-editor-list label { min-height: 43px; display: grid; grid-template-columns: 28px 1fr 35px; align-items: center; gap: 8px; border-bottom: 1px solid #f0f0ec; }
-.stage-name-editor-list label > span { margin: 0; font: 8px ui-monospace, monospace; }
+.stage-name-editor-list label > span { margin: 0; font: 600 8px var(--font-ui); }
 .stage-name-editor-list input { height: 32px; }
-.stage-name-editor-list small { color: #999993; text-align: right; font: 8px ui-monospace, monospace; }
+.stage-name-editor-list small { color: #999993; text-align: right; font: 600 8px var(--font-ui); }
 .activity-section { margin-top: 36px; padding: 28px 0 12px; border-top: 1px solid #eeeeea; }
 .activity-mobile-overview { display: none; }
 .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
@@ -296,7 +297,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .suite-sync-toggle:hover { background: #f3f3f0; color: #222220; }
 .suite-sync-controls { display: flex; align-items: center; gap: 7px; margin-top: 18px; }
 .suite-sync-controls label { flex: 1; max-width: 330px; }
-.suite-sync-controls input { width: 100%; height: 36px; padding: 0 11px; border: 1px solid #deded8; border-radius: 9px; outline: none; background: #fff; color: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.suite-sync-controls input { width: 100%; height: 36px; padding: 0 11px; border: 1px solid #deded8; border-radius: 9px; outline: none; background: #fff; color: inherit; font-family: var(--font-ui); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .suite-sync-controls input:focus { border-color: #9b9b95; box-shadow: 0 0 0 3px #f0f0ec; }
 .suite-sync-controls .primary-button, .suite-sync-controls .ghost-button { min-height: 36px; font-size: 11px; white-space: nowrap; }
 .suite-disconnect { min-height: 34px; border: 0; background: transparent; color: #999993; cursor: pointer; font-size: 10px; }
@@ -306,7 +307,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(34,34,30,.2); backdrop-filter: blur(4px); }
 .dialog { width: min(420px, 100%); padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 25px 80px rgba(0,0,0,.18); }
-.dialog-kicker { margin: 0 0 7px; font-family: ui-monospace, monospace; letter-spacing: .13em; color: #aaa; font-size: 9px; }
+.dialog-kicker { margin: 0 0 7px; font-family: var(--font-ui); letter-spacing: .13em; color: #aaa; font-size: 9px; }
 .dialog h2 { margin: 0 0 22px; font-size: 25px; font-weight: 600; }
 .dialog label span { display: block; margin-bottom: 8px; font-size: 12px; color: #777; }
 .dialog input { width: 100%; height: 43px; padding: 0 12px; border: 1px solid #d8d8d2; border-radius: 9px; outline: none; }
