@@ -32,6 +32,12 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .view-switcher button { border: 0; background: transparent; padding: 7px 15px; border-radius: 8px; color: #70706b; cursor: pointer; font-size: 13px; font-weight: 600; }
 .view-switcher button.active { color: #1f1f1d; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.1); }
 .top-actions { display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: 6px; min-width: 0; }
+.desktop-shortcuts { display: contents; }
+.shortcut-more-wrap { position: relative; display: none; }
+.shortcut-popover { position: absolute; top: calc(100% + 9px); right: 0; z-index: 30; width: 218px; padding: 7px; border: 1px solid #dfdfd9; border-radius: 12px; background: var(--theme-surface); box-shadow: 0 16px 42px rgba(25,25,22,.16); }
+.shortcut-popover a { min-height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: inherit; text-decoration: none; font-size: 12px; white-space: nowrap; }
+.shortcut-popover a:hover { background: #f2f2ef; }
+.shortcut-popover a span { width: 18px; text-align: center; font-weight: 700; }
 .integrated-workspace { min-height: calc(100vh - 105px); background: var(--theme-surface); }
 .integrated-toolbar { min-height: 49px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 7px 28px; border-bottom: 1px solid #ecece7; }
 .integrated-tabs { display: flex; align-items: center; gap: 5px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -140,6 +146,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .history-row time { color: #777771; font-family: ui-monospace, monospace; }
 .random-history p { color: #999; font-size: 11px; }
 .stage-board-section { margin-top: 28px; padding-top: 22px; border-top: 1px solid #e8e8e3; }
+.stage-mobile-overview { display: none; }
 .stage-section-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
 .stage-board-title { margin: 0; font-size: 17px; font-weight: 700; width: auto; }
 .stage-section-heading span { color: #888882; font-size: 10px; }
@@ -176,6 +183,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-manage-list button:hover { background: #f9ecea; color: #b44740; }
 .stage-manage-list p { color: #999; font-size: 11px; }
 .activity-section { margin-top: 36px; padding: 28px 0 12px; border-top: 1px solid #eeeeea; }
+.activity-mobile-overview { display: none; }
 .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
 .activity-heading h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: .01em; }
 .activity-modes { display: flex; align-items: center; gap: 22px; }
@@ -233,8 +241,12 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 @media (max-width: 760px) {
   .app-shell { width: 100%; min-height: 100vh; margin: 0; border: 0; border-radius: 0; }
   .topbar { grid-template-columns: 1fr auto; padding: 14px 18px; gap: 12px; }
-  .top-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
-  .top-actions::-webkit-scrollbar { display: none; }
+  .top-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; gap: 3px; overflow: visible; }
+  .desktop-shortcuts { display: none; }
+  .shortcut-more-wrap { display: inline-flex; }
+  .top-actions .icon-button { width: 40px; min-height: 40px; flex-basis: 40px; }
+  .top-actions .new-project-button { width: 40px; min-height: 40px; padding: 0; flex: 0 0 40px; }
+  .top-actions .new-project-button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
   .integrated-toolbar { padding: 7px 12px; }
   .integrated-tabs button { padding-inline: 9px; }
   .integrated-tabs button span { margin-right: 4px; }
@@ -253,11 +265,29 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
   .data-transfer { margin-left: auto; }
   .prompt-manager { grid-template-columns: 1fr; gap: 18px; }
   .history-row { grid-template-columns: 85px repeat(3, 1fr); gap: 8px; font-size: 10px; }
-  .new-project-button { padding-inline: 10px; }
+  .stage-mobile-overview { display: block; }
+  .stage-mobile-overview > p { margin: 0; padding: 16px 0; color: #999; font-size: 11px; }
+  .stage-mobile-project { width: 100%; min-height: 54px; display: grid; grid-template-columns: minmax(95px, 1fr) minmax(100px, 1.5fr) 42px; align-items: center; gap: 10px; padding: 0; border: 0; border-top: 1px solid #eeeeea; background: transparent; text-align: left; cursor: pointer; }
+  .stage-mobile-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .stage-mobile-copy strong, .stage-mobile-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stage-mobile-copy strong { font-size: 12px; }
+  .stage-mobile-copy small { color: #777771; font-size: 10px; }
+  .stage-mobile-progress { height: 5px; border-radius: 999px; background: #e5e5df; overflow: hidden; }
+  .stage-mobile-progress i { display: block; height: 100%; background: #292927; }
+  .stage-mobile-project b { text-align: right; font-family: ui-monospace, monospace; font-size: 11px; }
+  .stage-detail-toggle { min-height: 38px; margin-top: 8px; padding: 0; border: 0; background: transparent; color: #777771; cursor: pointer; font-size: 11px; }
+  .stage-scroll { display: none; }
+  .stage-scroll[data-mobile-expanded="true"] { display: block; }
+  .stage-axis-header .editable-label { min-height: 32px; }
   .activity-heading { align-items: baseline; }
   .activity-modes { gap: 16px; }
   .activity-modes button { font-size: 14px; }
-  .activity-calendar { min-width: 1162px; }
+  .activity-scroll { display: none; }
+  .activity-mobile-overview { display: block; }
+  .activity-mobile-grid { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-flow: column; grid-auto-columns: 13px; justify-content: space-between; gap: 4px; }
+  .activity-mobile-grid i { width: 13px; height: 13px; border-radius: 4px; }
+  .activity-mobile-grid i[data-future="true"] { background: #fafafa; opacity: .75; }
+  .activity-mobile-overview > span { display: block; margin-top: 10px; color: #969691; font-size: 11px; }
   .suite-sync-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
   .suite-sync-controls { align-items: stretch; flex-wrap: wrap; }
   .suite-sync-controls label { flex-basis: 100%; max-width: none; }
@@ -345,6 +375,13 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .dialog input { border-color: #444440; background: #292927; color: #ecece7; }
 [data-theme="dark"] .project-actions { box-shadow: -10px 0 16px #222220; }
 [data-theme="dark"] .stage-row-end { box-shadow: -10px 0 16px #222220; }
+[data-theme="dark"] .project-spacer { background: #222220; color: #ecece7; }
+[data-theme="dark"] .shortcut-popover { border-color: #3b3b37; background: #292927; }
+[data-theme="dark"] .shortcut-popover a:hover { background: #353532; }
+[data-theme="dark"] .stage-mobile-project { border-color: #373733; }
+[data-theme="dark"] .stage-mobile-progress { background: #494944; }
+[data-theme="dark"] .stage-mobile-progress i { background: #eeeeea; }
+[data-theme="dark"] .activity-mobile-grid i[data-future="true"] { background: #282826; }
 [data-theme="dark"] .new-project-button,
 [data-theme="dark"] .primary-button { background: #eeeeea; color: #222220; border-color: #eeeeea; }
 [data-theme="dark"] .daily-random .locked strong {

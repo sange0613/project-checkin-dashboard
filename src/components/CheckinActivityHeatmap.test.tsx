@@ -17,6 +17,7 @@ test('renders the daily activity grid and shows the count on hover', async () =>
   const cell = screen.getByRole('button', { name: '2026年6月29日 打卡 2 次' })
   await user.hover(cell)
   expect(screen.getByRole('tooltip')).toHaveTextContent('2026年6月29日 打卡 2 次')
+  expect(screen.getByLabelText('最近20周活动全览').querySelectorAll('i')).toHaveLength(140)
 })
 
 test('switches to weekly and cumulative values without changing the calendar layout', async () => {

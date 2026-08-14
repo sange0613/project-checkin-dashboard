@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, ChevronLeft, ChevronRight, Download, ExternalLink, Github, Moon, Plus, Search, Sun, Upload, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Moon, Plus, Search, Sun, Upload, X } from 'lucide-react'
 import { EditableText } from './components/EditableText'
 import { ProjectDialog } from './components/ProjectDialog'
 import { ProjectGrid } from './components/ProjectGrid'
@@ -9,6 +9,7 @@ import { RandomHistory } from './components/RandomHistory'
 import { ProjectStageBoard, StageProjectManager } from './components/ProjectStageBoard'
 import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
 import { SuiteSyncPanel } from './components/SuiteSyncPanel'
+import { ShortcutBar } from './components/ShortcutBar'
 import type { AppState, Project, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
 import { createStageProject } from './domain/projectStages'
@@ -86,7 +87,7 @@ function makeId() {
 }
 
 export default function App() {
-  const [state, setState] = useState<AppState>(() => repository.load())
+  const [state, setState] = useState<AppState>(() => ({ ...repository.load(), anchorDate: new Date().toISOString() }))
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -148,8 +149,13 @@ export default function App() {
 
   const monthTitle = `${anchor.getFullYear()} 年 ${anchor.getMonth() + 1} 月`
   const todayKey = toDateKey(today)
+  const lastSyncLabel = suiteSync.lastSyncedAt
+    ? Date.now() - suiteSync.lastSyncedAt < 60_000
+      ? '刚刚'
+      : `${Math.max(1, Math.floor((Date.now() - suiteSync.lastSyncedAt) / 60_000))} 分钟前`
+    : ''
   const syncSummary = suiteSync.status === 'synced'
-    ? '数据已同步'
+    ? `数据已同步${lastSyncLabel ? ` · ${lastSyncLabel}` : ''}`
     : suiteSync.status === 'syncing'
       ? '正在同步'
       : suiteSync.status === 'connecting'
@@ -236,36 +242,12 @@ export default function App() {
           ))}
         </nav>
         <div className="top-actions">
-          <button type="button" className="icon-button shortcut-character" aria-label="每日卡路里" title="每日卡路里" onClick={() => openIntegratedTool('daily')}>饮</button>
-          <button type="button" className="icon-button shortcut-character" aria-label="清单打卡" title="清单打卡" onClick={() => openIntegratedTool('checklist')}>清</button>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
-          <a
-            className="icon-button"
-            href="https://sange1022.github.io/english-copywork-trainer/"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="英语抄写"
-            title="英语抄写"
-          >
-            <BookOpen size={17} />
-          </a>
-          <a className="icon-button shortcut-character" href="https://learnbuffett.com" target="_blank" rel="noopener noreferrer" aria-label="Learn Buffett" title="Learn Buffett">巴</a>
-          <a className="icon-button shortcut-character" href="https://mungermodels.com" target="_blank" rel="noopener noreferrer" aria-label="Munger Models" title="Munger Models">芒</a>
-          <a className="icon-button shortcut-character" href="https://gogoscrum.com" target="_blank" rel="noopener noreferrer" aria-label="GoGoScrum" title="GoGoScrum">项</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-wechat-editor/" target="_blank" rel="noopener noreferrer" aria-label="公众号编辑器" title="公众号编辑器">公</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/xuwu-image-collage/" target="_blank" rel="noopener noreferrer" aria-label="图片拼贴" title="图片拼贴">拼</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/qf-07-9a6c3e21/" target="_blank" rel="noopener noreferrer" aria-label="构" title="构">构</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/random-planar-composition/" target="_blank" rel="noopener noreferrer" aria-label="间" title="间">间</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/contour-text-studio/?v=5787e7a" target="_blank" rel="noopener noreferrer" aria-label="海" title="海">海</a>
-          <a className="icon-button shortcut-character" href="https://sange1022.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="词">词</a>
-          <a className="icon-button" href="https://github.com/sange1022" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页">
-            <Github size={17} />
-          </a>
+          <ShortcutBar onOpenIntegratedTool={openIntegratedTool} />
           <button className="icon-button" aria-label={actualTheme === 'dark' ? '切换白天模式' : '切换夜晚模式'} onClick={toggleTheme}>
             {actualTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
           <button className="icon-button" aria-label={searchOpen ? '关闭搜索' : '搜索项目'} onClick={() => setSearchOpen((value) => !value)}>{searchOpen ? <X size={17} /> : <Search size={17} />}</button>
-          <button className="new-project-button" onClick={() => setDialogOpen(true)}><Plus size={16} />新项目</button>
+          <button className="new-project-button" aria-label="新项目" onClick={() => setDialogOpen(true)}><Plus size={16} /><span>新项目</span></button>
         </div>
       </header>
       {activeToolId ? (
@@ -345,7 +327,8 @@ export default function App() {
           code={suiteSync.codeInput}
           connected={Boolean(suiteSync.connectedCode)}
           status={suiteSync.status}
-          message={suiteSync.message}
+            message={suiteSync.message}
+            lastSyncedAt={suiteSync.lastSyncedAt}
           onCodeChange={suiteSync.setCodeInput}
           onConnect={() => suiteSync.connect()}
           onCreate={suiteSync.createAndConnect}

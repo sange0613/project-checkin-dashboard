@@ -6,14 +6,18 @@ type SuiteSyncPanelProps = {
   connected: boolean
   status: 'local' | 'connecting' | 'syncing' | 'synced' | 'error'
   message: string
+  lastSyncedAt?: number
   onCodeChange: (code: string) => void
   onConnect: () => void
   onCreate: () => void
   onDisconnect: () => void
 }
 
-export function SuiteSyncPanel({ code, connected, status, message, onCodeChange, onConnect, onCreate, onDisconnect }: SuiteSyncPanelProps) {
+export function SuiteSyncPanel({ code, connected, status, message, lastSyncedAt, onCodeChange, onConnect, onCreate, onDisconnect }: SuiteSyncPanelProps) {
   const [expanded, setExpanded] = useState(false)
+  const syncMessage = status === 'synced' && lastSyncedAt
+    ? `${message} · ${Date.now() - lastSyncedAt < 60_000 ? '刚刚' : `${Math.max(1, Math.floor((Date.now() - lastSyncedAt) / 60_000))} 分钟前`}`
+    : message
 
   return (
     <section className="suite-sync-section" aria-label="数据同步" data-expanded={expanded}>
@@ -25,7 +29,7 @@ export function SuiteSyncPanel({ code, connected, status, message, onCodeChange,
         <div className="suite-sync-heading-actions">
           <span className="suite-sync-status" data-status={status} role="status">
             {status === 'syncing' || status === 'connecting' ? <RefreshCw size={14} className="spin" /> : connected ? <Cloud size={14} /> : <CloudOff size={14} />}
-            {message}
+            {syncMessage}
           </span>
           <button
             type="button"

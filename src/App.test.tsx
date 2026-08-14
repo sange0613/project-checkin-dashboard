@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { createInitialState } from './domain/types'
 
 beforeEach(() => localStorage.clear())
 
@@ -9,6 +10,14 @@ test('renders the default editable page title', () => {
   expect(screen.getByText('项目进度')).toBeInTheDocument()
   expect(document.querySelector('.period-meta')).toHaveTextContent('仅保存在当前浏览器')
   expect(screen.queryByText(/个项目 · 仅保存在此浏览器/)).not.toBeInTheDocument()
+})
+
+test('opens on the current month even when the saved month is stale', () => {
+  const saved = { ...createInitialState(), anchorDate: '2025-01-01T00:00:00.000Z' }
+  localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state: saved }))
+  render(<App />)
+  const now = new Date()
+  expect(screen.getByRole('heading', { name: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月` })).toBeVisible()
 })
 
 test('edits the title and creates a project', async () => {

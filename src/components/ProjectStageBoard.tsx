@@ -14,13 +14,33 @@ type BoardProps = {
 }
 
 export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLabelChange, onStageChange }: BoardProps) {
+  const [mobileDetailed, setMobileDetailed] = useState(false)
+
   return (
     <section className="stage-board-section">
       <div className="stage-section-heading">
         <EditableText value={title} ariaLabel="进度视图标题" onSave={onTitleChange} className="stage-board-title" />
         <span>{projects.length} 个项目</span>
       </div>
-      <div className="stage-scroll">
+      <div className="stage-mobile-overview">
+        {projects.map((project) => {
+          const stage = PROJECT_STAGES[project.stageIndex] ?? PROJECT_STAGES[0]
+          return (
+            <button type="button" key={project.id} className="stage-mobile-project" onClick={() => setMobileDetailed(true)}>
+              <span className="stage-mobile-copy"><strong>{project.name}</strong><small>{labels[project.stageIndex] ?? stage.name}</small></span>
+              <span className="stage-mobile-progress"><i style={{ width: `${stage.percent}%` }} /></span>
+              <b>{stage.percent}%</b>
+            </button>
+          )
+        })}
+        {!projects.length ? <p>还没有进度项目</p> : null}
+        {projects.length ? (
+          <button type="button" className="stage-detail-toggle" onClick={() => setMobileDetailed((value) => !value)}>
+            {mobileDetailed ? '收起详细阶段' : '展开详细阶段'}
+          </button>
+        ) : null}
+      </div>
+      <div className="stage-scroll" data-mobile-expanded={mobileDetailed || undefined}>
         <div className="stage-grid">
           <div className="stage-project-header">项目</div>
           <div className="stage-axis-header">

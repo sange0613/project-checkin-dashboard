@@ -125,6 +125,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const [status, setStatus] = useState<SyncStatus>('local')
   const [message, setMessage] = useState('仅保存在当前浏览器')
   const [toolDataRevision, setToolDataRevision] = useState(0)
+  const [lastSyncedAt, setLastSyncedAt] = useState<number>()
   const [initialMeta] = useState(loadMeta)
   const [initialDashboardSync] = useState(() => loadDashboardSync(state))
   const [deviceId] = useState(getDeviceId)
@@ -225,6 +226,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           applySuite(merged)
           setStatus('synced')
           setMessage('已同步')
+          setLastSyncedAt(Date.now())
         }
       } catch (error) {
         console.error('Suite sync failed', error)
@@ -306,6 +308,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         session.ready = true
         setStatus('synced')
         setMessage('已同步')
+        setLastSyncedAt(Date.now())
 
         session.unsubscribe = onSnapshot(session.document, (snapshot) => {
           if (disposed || !snapshot.exists()) return
@@ -317,6 +320,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           else {
             setStatus('synced')
             setMessage('已同步')
+            setLastSyncedAt(Date.now())
           }
         }, (error) => {
           console.error('Suite sync listener failed', error)
@@ -414,5 +418,6 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     createAndConnect,
     disconnect,
     toolDataRevision,
+    lastSyncedAt,
   }
 }

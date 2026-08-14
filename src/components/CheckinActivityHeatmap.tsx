@@ -28,6 +28,7 @@ export function CheckinActivityHeatmap({ checkins, today }: Props) {
   const values = useMemo(() => getActivityValues(dates, dailyTotals, mode), [dailyTotals, dates, mode])
   const valueList = useMemo(() => dates.filter((item) => !item.isFuture).map((item) => values[item.key] ?? 0), [dates, values])
   const monthLabels = useMemo(() => getActivityMonthLabels(dates), [dates])
+  const mobileDates = useMemo(() => dates.filter((item) => item.weekIndex >= 33), [dates])
   const activeDate = activeCell ? dates.find((item) => item.key === activeCell.key) : undefined
   const activeTooltip = activeDate ? formatActivityTooltip(activeDate.date, values[activeDate.key] ?? 0, mode) : ''
   const showTooltip = (key: string, element: HTMLButtonElement) => {
@@ -51,6 +52,23 @@ export function CheckinActivityHeatmap({ checkins, today }: Props) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="activity-mobile-overview" aria-label="最近20周活动全览">
+        <div className="activity-mobile-grid" aria-hidden="true">
+          {mobileDates.map((item) => {
+            const value = values[item.key] ?? 0
+            return (
+              <i
+                key={item.key}
+                data-intensity={getActivityIntensity(value, valueList)}
+                data-future={item.isFuture || undefined}
+                title={formatActivityTooltip(item.date, value, mode)}
+              />
+            )
+          })}
+        </div>
+        <span>最近 20 周</span>
       </div>
 
       <div className="activity-scroll">
