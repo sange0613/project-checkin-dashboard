@@ -191,6 +191,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-design-bar, .stage-task-bar { position: absolute; top: 15px; height: 19px; border-radius: 5px; }
 .stage-design-bar { background: #e8e8e3; }
 .stage-task-bar { z-index: 2; min-width: 24px; display: flex; align-items: center; overflow: hidden; background: #2d2d2a; color: #fff; }
+.stage-task-bar[data-completed="true"] { background: #4f95e8; }
 .stage-task-bar span { padding: 0 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
 .stage-gantt-empty { padding: 38px 16px; color: #999993; text-align: center; font-size: 11px; }
 .stage-overview { margin-top: 19px; color: #777771; font-size: 10px; }
@@ -219,6 +220,9 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-portfolio-rail button::after { content: ""; position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #d2d2cc; transform: translate(-50%, -50%); }
 .stage-portfolio-rail button.done::after { background: #74746e; }
 .stage-portfolio-rail button.current::after { width: 15px; height: 15px; background: #292927; }
+.stage-portfolio-rail[data-completed="true"] > span,
+.stage-portfolio-rail[data-completed="true"] button.done::after,
+.stage-portfolio-rail[data-completed="true"] button.current::after { background: #4f95e8; }
 .stage-portfolio-rail button i { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; color: #fff; font: 600 6px var(--font-ui); font-style: normal; }
 .stage-percent { font: 700 10px var(--font-ui); font-variant-numeric: tabular-nums; text-align: right; }
 .stage-edit-button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #8b8b85; cursor: pointer; }
@@ -250,6 +254,10 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .stage-editor-progress span { color: #777771; font-size: 9px; }
 .stage-editor-progress > div:last-child { height: 4px; border-radius: 4px; background: #ecece7; overflow: hidden; }
 .stage-editor-progress i { display: block; height: 100%; background: #292927; }
+.stage-editor-progress[data-completed="true"] i { background: #4f95e8; }
+.stage-task-complete-toggle { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px; margin: -6px 0 18px; border: 1px solid #deded8; border-radius: 9px; background: transparent; color: #666660; cursor: pointer; font-size: 11px; }
+.stage-task-complete-toggle:hover { border-color: #9abfe9; color: #2f72bd; }
+.stage-task-complete-toggle[data-active="true"] { border-color: #4f95e8; background: #edf5ff; color: #2f72bd; }
 .stage-date-error { margin: -9px 0 14px; color: #b44740; font-size: 9px; }
 .stage-editor > footer { display: flex; align-items: center; gap: 8px; padding: 16px 26px 22px; border-top: 1px solid #eeeeea; }
 .stage-delete-button { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #a74740; cursor: pointer; font: inherit; font-size: 10px; }
@@ -509,6 +517,11 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .stage-task-bar,
 [data-theme="dark"] .stage-editor-progress i,
 [data-theme="dark"] .stage-portfolio-rail button.current::after { background: #eeeeea; color: #222220; }
+[data-theme="dark"] .stage-task-bar[data-completed="true"],
+[data-theme="dark"] .stage-editor-progress[data-completed="true"] i,
+[data-theme="dark"] .stage-portfolio-rail[data-completed="true"] > span,
+[data-theme="dark"] .stage-portfolio-rail[data-completed="true"] button.done::after,
+[data-theme="dark"] .stage-portfolio-rail[data-completed="true"] button.current::after { background: #68aaf5; color: #fff; }
 [data-theme="dark"] .stage-portfolio-rail > span,
 [data-theme="dark"] .stage-editor-progress > div:last-child { background: #494944; }
 [data-theme="dark"] .stage-portfolio-rail button::after { background: #60605a; }
@@ -521,6 +534,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .stage-editor input:focus,
 [data-theme="dark"] .stage-editor textarea:focus,
 [data-theme="dark"] .stage-editor select:focus { border-color: #777770; box-shadow: 0 0 0 3px #30302d; }
+[data-theme="dark"] .stage-task-complete-toggle { border-color: #444440; color: #b8b8b2; }
+[data-theme="dark"] .stage-task-complete-toggle[data-active="true"] { border-color: #68aaf5; background: #213c5c; color: #a9d0ff; }
 [data-theme="dark"] .activity-mobile-grid i[data-future="true"] { background: #282826; }
 [data-theme="dark"] .new-project-button,
 [data-theme="dark"] .primary-button { background: #eeeeea; color: #222220; border-color: #eeeeea; }

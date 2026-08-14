@@ -32,6 +32,7 @@ export function createStageProject(name: string, id: string): StageProject {
     designEnd: addStageDays(today, 90),
     taskStart: today,
     taskEnd: addStageDays(today, 7),
+    taskCompleted: false,
     note: '',
     modifiedAt: now.toISOString(),
   }
@@ -66,6 +67,7 @@ export function hydrateStageProject(project: StageProject): StageProject & Requi
     designEnd: project.designEnd || addStageDays(designStart, 90),
     taskStart,
     taskEnd: project.taskEnd || addStageDays(taskStart, 7),
+    taskCompleted: project.taskCompleted === true,
     note: project.note ?? '',
     modifiedAt: project.modifiedAt || project.createdAt,
   }
@@ -83,9 +85,10 @@ export function createStageProjectDraft(project?: StageProject): StageProjectDra
       designEnd: hydrated.designEnd,
       taskStart: hydrated.taskStart,
       taskEnd: hydrated.taskEnd,
+      taskCompleted: hydrated.taskCompleted,
       note: hydrated.note,
     }
   }
   const today = toStageDate(new Date())
-  return { name: '', client: '', location: '', stageIndex: 0, designStart: today, designEnd: addStageDays(today, 90), taskStart: today, taskEnd: addStageDays(today, 7), note: '' }
+  return { name: '', client: '', location: '', stageIndex: 0, designStart: today, designEnd: addStageDays(today, 90), taskStart: today, taskEnd: addStageDays(today, 7), taskCompleted: false, note: '' }
 }

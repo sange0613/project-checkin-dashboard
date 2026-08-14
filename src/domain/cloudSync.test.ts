@@ -58,6 +58,7 @@ describe('canonical cloud sync merge', () => {
         designEnd: '2026-11-01',
         taskStart: '2026-08-12',
         taskEnd: '2026-08-20',
+        taskCompleted: true,
         note: '等待模型确认',
         modifiedAt: '2026-08-14T00:00:00.000Z',
       }],

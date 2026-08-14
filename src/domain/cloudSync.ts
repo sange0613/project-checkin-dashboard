@@ -148,6 +148,7 @@ function normalizeEntities(kind: SyncEntityKind, value: unknown): SyncEntity[] {
         designEnd: stringValue(candidate.designEnd),
         taskStart: stringValue(candidate.taskStart),
         taskEnd: stringValue(candidate.taskEnd),
+        taskCompleted: candidate.taskCompleted === true,
         note: stringValue(candidate.note),
         modifiedAt: stringValue(candidate.modifiedAt),
         order: numberValue(candidate.order),

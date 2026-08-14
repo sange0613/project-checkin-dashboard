@@ -85,7 +85,7 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
                 <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span><strong>{project.name}</strong><small>{labels[project.stageIndex]}</small></span></div>
                 <div className="stage-gantt-grid" style={{ left: labelWidth, width: chartWidth, backgroundSize: `${dayWidth}px 100%` }} />
                 <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }} />
-                <div className="stage-task-bar" title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}`} style={{ left: taskLeft, width: taskWidth }}><span>{labels[project.stageIndex]}</span></div>
+                <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}><span>{labels[project.stageIndex]}{project.taskCompleted ? ' · 已完结' : ''}</span></div>
               </div>
             )
           })}
@@ -97,7 +97,7 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
 
 function StageRail({ project, labels, onChange }: { project: StageProject; labels: string[]; onChange: (stageIndex: number) => void }) {
   return (
-    <div className="stage-portfolio-rail" aria-label={`${project.name} 当前阶段：${labels[project.stageIndex]}`}>
+    <div className="stage-portfolio-rail" data-completed={project.taskCompleted || undefined} aria-label={`${project.name} 当前阶段：${labels[project.stageIndex]}${project.taskCompleted ? '，当前任务已完结' : ''}`}>
       <span />
       {PROJECT_STAGES.map((stage, index) => (
         <button
@@ -134,8 +134,9 @@ function ProjectEditor({ project, labels, onClose, onSave, onDelete }: { project
           </div>
           <fieldset><legend>设计周期</legend><label><span>开始日期</span><input type="date" value={draft.designStart} onChange={(event) => update('designStart', event.target.value)} /></label><label><span>结束日期</span><input type="date" min={draft.designStart} value={draft.designEnd} onChange={(event) => update('designEnd', event.target.value)} /></label></fieldset>
           <label><span>当前阶段</span><div className="stage-select-wrap"><select value={draft.stageIndex} onChange={(event) => update('stageIndex', Number(event.target.value))}>{PROJECT_STAGES.map((item, index) => <option key={item.name} value={index}>{index + 1}. {labels[index]}</option>)}</select><ChevronDown size={16} /></div></label>
-          <div className="stage-editor-progress"><div><strong>{stage.percent}%</strong><span>{labels[draft.stageIndex]}</span></div><div><i style={{ width: `${stage.percent}%` }} /></div></div>
+          <div className="stage-editor-progress" data-completed={draft.taskCompleted || undefined}><div><strong>{stage.percent}%</strong><span>{labels[draft.stageIndex]}</span></div><div><i style={{ width: `${stage.percent}%` }} /></div></div>
           <fieldset><legend>当前任务周期</legend><label><span>开始日期</span><input type="date" value={draft.taskStart} onChange={(event) => update('taskStart', event.target.value)} /></label><label><span>结束日期</span><input type="date" min={draft.taskStart} value={draft.taskEnd} onChange={(event) => update('taskEnd', event.target.value)} /></label></fieldset>
+          <button type="button" className="stage-task-complete-toggle" data-active={draft.taskCompleted || undefined} aria-pressed={draft.taskCompleted} onClick={() => update('taskCompleted', !draft.taskCompleted)}><Check size={15} />{draft.taskCompleted ? '当前任务已完结' : '标记当前任务完结'}</button>
           {!datesValid ? <p className="stage-date-error">结束日期不能早于开始日期</p> : null}
           <label><span>备注</span><textarea rows={5} value={draft.note} onChange={(event) => update('note', event.target.value.slice(0, 200))} placeholder="记录下一步或待确认事项" /><small>{draft.note.length}/200</small></label>
         </div>
@@ -186,7 +187,7 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
   const complete = hydratedProjects.length - active
   const today = toStageDate(new Date())
   const weekEnd = addStageDays(today, 7)
-  const dueSoon = hydratedProjects.filter((project) => project.stageIndex < PROJECT_STAGES.length - 1 && project.taskEnd >= today && project.taskEnd <= weekEnd).length
+  const dueSoon = hydratedProjects.filter((project) => !project.taskCompleted && project.stageIndex < PROJECT_STAGES.length - 1 && project.taskEnd >= today && project.taskEnd <= weekEnd).length
   const average = hydratedProjects.length ? Math.round(hydratedProjects.reduce((sum, project) => sum + PROJECT_STAGES[project.stageIndex].percent, 0) / hydratedProjects.length) : 0
   const editingProject = editingId && editingId !== 'new' ? projects.find((project) => project.id === editingId) : undefined
   const selectSort = (next: Sort, defaultDirection: SortDirection = 'asc') => {

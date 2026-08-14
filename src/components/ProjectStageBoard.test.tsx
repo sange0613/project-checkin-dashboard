@@ -57,3 +57,15 @@ test('changes a project stage directly from the progress rail', async () => {
   await user.click(screen.getByRole('button', { name: '将 住宅设计 设为现场施工' }))
   expect(onStageChange).toHaveBeenCalledWith('stage-1', 13)
 })
+
+test('marks the current task complete from the project editor', async () => {
+  const user = userEvent.setup()
+  const { onUpdate } = renderBoard()
+
+  await user.click(screen.getByRole('button', { name: '编辑阶段项目 住宅设计' }))
+  const editor = screen.getByRole('dialog', { name: '编辑阶段项目' })
+  await user.click(within(editor).getByRole('button', { name: '标记当前任务完结' }))
+  await user.click(within(editor).getByRole('button', { name: '保存' }))
+
+  expect(onUpdate).toHaveBeenCalledWith('stage-1', expect.objectContaining({ taskCompleted: true }))
+})

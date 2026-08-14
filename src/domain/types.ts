@@ -35,6 +35,7 @@ export type StageProject = {
   designEnd?: string
   taskStart?: string
   taskEnd?: string
+  taskCompleted?: boolean
   note?: string
   modifiedAt?: string
 }
