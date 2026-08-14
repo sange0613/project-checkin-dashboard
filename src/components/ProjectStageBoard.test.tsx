@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 import { createInitialState } from '../domain/types'
+import { addStageDays, toStageDate } from '../domain/projectStages'
 import { ProjectStageBoard } from './ProjectStageBoard'
 
 function renderBoard() {
@@ -96,4 +97,36 @@ test('adds and saves a custom stage name', async () => {
   await user.click(within(editor).getByRole('button', { name: '保存阶段名称' }))
 
   expect(onLabelsChange).toHaveBeenCalledWith([...state.stageLabels, '竣工摄影'])
+})
+
+test('hides completed projects by default and locates projects due within seven days', async () => {
+  const user = userEvent.setup()
+  const state = createInitialState()
+  const today = toStageDate(new Date())
+  render(
+    <ProjectStageBoard
+      title={state.stageBoardTitle}
+      labels={state.stageLabels}
+      projects={[
+        { id: 'due', name: '即将到期', stageIndex: 4, createdAt: `${today}T00:00:00.000Z`, taskStart: today, taskEnd: addStageDays(today, 2) },
+        { id: 'later', name: '稍后到期', stageIndex: 5, createdAt: `${today}T00:00:00.000Z`, taskStart: today, taskEnd: addStageDays(today, 20) },
+        { id: 'complete', name: '服务已完结', stageIndex: 14, createdAt: `${today}T00:00:00.000Z` },
+      ]}
+      onTitleChange={vi.fn()}
+      onLabelsChange={vi.fn()}
+      onCreate={vi.fn()}
+      onUpdate={vi.fn()}
+      onDelete={vi.fn()}
+      onStageChange={vi.fn()}
+    />,
+  )
+
+  const projectList = screen.getByRole('generic', { name: '阶段项目列表' })
+  expect(within(projectList).getByText('即将到期')).toBeVisible()
+  expect(within(projectList).getByText('稍后到期')).toBeVisible()
+  expect(within(projectList).queryByText('服务已完结')).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /7天内到期.*1.*点击定位/ }))
+  expect(within(projectList).getByText('即将到期')).toBeVisible()
+  expect(within(projectList).queryByText('稍后到期')).not.toBeInTheDocument()
 })

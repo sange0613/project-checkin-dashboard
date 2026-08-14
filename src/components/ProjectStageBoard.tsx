@@ -24,8 +24,8 @@ type Props = {
   onStageChange: (id: string, stageIndex: number) => void
 }
 
-type Filter = 'all' | 'active' | 'complete'
-type Sort = 'updated' | 'progress' | 'designStart'
+type Filter = 'all' | 'active' | 'dueSoon' | 'complete'
+type Sort = 'updated' | 'progress' | 'designStart' | 'taskEnd'
 type SortDirection = 'asc' | 'desc'
 
 function shortDate(value: string) {
@@ -167,34 +167,48 @@ function StageNameEditor({ labels, onClose, onSave }: { labels: string[]; onClos
 export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLabelsChange, onCreate, onUpdate, onDelete, onStageChange }: Props) {
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
-  const [filter, setFilter] = useState<Filter>('all')
+  const [filter, setFilter] = useState<Filter>('active')
   const [sort, setSort] = useState<Sort>('updated')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [stageEditorOpen, setStageEditorOpen] = useState(false)
+  const projectListRef = useRef<HTMLDivElement>(null)
   const hydratedProjects = useMemo(() => projects.map(hydrateStageProject), [projects])
+  const today = toStageDate(new Date())
+  const weekEnd = addStageDays(today, 7)
   const visibleProjects = useMemo(() => {
     const needle = deferredQuery.trim().toLocaleLowerCase()
     const direction = sortDirection === 'asc' ? 1 : -1
     return [...hydratedProjects]
-      .filter((project) => filter === 'all' || (filter === 'complete' ? stagePercent(project.stageIndex) === 100 : stagePercent(project.stageIndex) < 100))
+      .filter((project) => {
+        if (filter === 'all') return true
+        if (filter === 'complete') return stagePercent(project.stageIndex) === 100
+        if (filter === 'dueSoon') return !project.taskCompleted && stagePercent(project.stageIndex) < 100 && project.taskEnd >= today && project.taskEnd <= weekEnd
+        return stagePercent(project.stageIndex) < 100
+      })
       .filter((project) => !needle || `${project.name} ${project.client} ${project.location}`.toLocaleLowerCase().includes(needle))
       .sort((left, right) => {
         if (sort === 'progress') return (left.stageIndex - right.stageIndex) * direction
         if (sort === 'designStart') return left.designStart.localeCompare(right.designStart) * direction
+        if (sort === 'taskEnd') return left.taskEnd.localeCompare(right.taskEnd) * direction
         return (new Date(left.modifiedAt).getTime() - new Date(right.modifiedAt).getTime()) * direction
       })
-  }, [deferredQuery, filter, hydratedProjects, sort, sortDirection])
+  }, [deferredQuery, filter, hydratedProjects, sort, sortDirection, today, weekEnd])
   const active = hydratedProjects.filter((project) => stagePercent(project.stageIndex) < 100).length
   const complete = hydratedProjects.length - active
-  const today = toStageDate(new Date())
-  const weekEnd = addStageDays(today, 7)
   const dueSoon = hydratedProjects.filter((project) => !project.taskCompleted && stagePercent(project.stageIndex) < 100 && project.taskEnd >= today && project.taskEnd <= weekEnd).length
   const average = hydratedProjects.length ? Math.round(hydratedProjects.reduce((sum, project) => sum + stagePercent(project.stageIndex), 0) / hydratedProjects.length) : 0
   const editingProject = editingId && editingId !== 'new' ? projects.find((project) => project.id === editingId) : undefined
   const selectSort = (next: Sort, defaultDirection: SortDirection = 'asc') => {
     if (sort === next) setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
     else { setSort(next); setSortDirection(defaultDirection) }
+  }
+  const showDueSoon = () => {
+    setQuery('')
+    setFilter('dueSoon')
+    setSort('taskEnd')
+    setSortDirection('asc')
+    requestAnimationFrame(() => projectListRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }))
   }
 
   return (
@@ -206,27 +220,27 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
 
       <div className="stage-portfolio-tools">
         <label><Search size={15} /><input aria-label="搜索阶段项目" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目、客户或地点" /></label>
-        <div className="stage-select-wrap"><select aria-label="筛选阶段项目" value={filter} onChange={(event) => setFilter(event.target.value as Filter)}><option value="all">全部项目</option><option value="active">进行中</option><option value="complete">已完成</option></select><ChevronDown size={14} /></div>
-        <button type="button" className="ghost-button" onClick={() => selectSort(sort === 'updated' ? 'progress' : 'updated', 'desc')}><ArrowDownUp size={14} />{sort === 'progress' ? '进度优先' : '最近更新'}</button>
+        <div className="stage-select-wrap"><select aria-label="筛选阶段项目" value={filter} onChange={(event) => setFilter(event.target.value as Filter)}><option value="active">待推进</option><option value="dueSoon">7天内到期</option><option value="all">全部项目</option><option value="complete">已完成</option></select><ChevronDown size={14} /></div>
+        <button type="button" className="ghost-button" onClick={() => selectSort(sort === 'updated' ? 'progress' : 'updated', 'desc')}><ArrowDownUp size={14} />{sort === 'progress' ? '进度优先' : sort === 'taskEnd' ? '到期优先' : '最近更新'}</button>
       </div>
 
       <div className="stage-summary" aria-label="项目数据总览">
         <button type="button" data-active={filter === 'all' || undefined} onClick={() => setFilter('all')}><span>全部项目</span><strong>{hydratedProjects.length}</strong><small>所有项目</small></button>
-        <button type="button" data-active={filter === 'active' || undefined} onClick={() => setFilter('active')}><span>进行中</span><strong>{active}</strong><small>正在推进</small></button>
+        <button type="button" data-active={filter === 'active' || undefined} onClick={() => setFilter('active')}><span>待推进</span><strong>{active}</strong><small>未服务完结</small></button>
         <button type="button" data-active={filter === 'complete' || undefined} onClick={() => setFilter('complete')}><span>已完成</span><strong>{complete}</strong><small>服务完结</small></button>
-        <div><span>7天内到期</span><strong>{dueSoon}</strong><small>当前任务</small></div>
+        <button type="button" data-active={filter === 'dueSoon' || undefined} onClick={showDueSoon}><span>7天内到期</span><strong>{dueSoon}</strong><small>点击定位</small></button>
         <div><span>平均进度</span><strong>{average}<i>%</i></strong><small>全部项目</small></div>
       </div>
 
       <ProjectGantt projects={visibleProjects} labels={labels} />
 
       <div className="stage-overview">
-        <div><strong>{visibleProjects.length}</strong> 个项目 <span>·</span> {active} 个进行中 <span>·</span> {complete} 个已完成</div>
+        <div><strong>{visibleProjects.length}</strong> 个项目 <span>·</span> {active} 个待推进 <span>·</span> {complete} 个已完成</div>
         <button type="button" onClick={() => setStageEditorOpen(true)}><Pencil size={12} />编辑阶段</button>
       </div>
       <div className="stage-legend" aria-label="阶段图例">{labels.map((label, index) => <span key={`${index}-${label}`}><i>{index + 1}</i>{label}</span>)}</div>
 
-      <div className="stage-project-table" aria-label="阶段项目列表">
+      <div className="stage-project-table" aria-label="阶段项目列表" ref={projectListRef}>
         <div className="stage-project-head"><span>项目</span><button type="button" onClick={() => selectSort('designStart')}>设计周期<ArrowDownUp size={11} /></button><button type="button" onClick={() => selectSort('progress')}>当前阶段<ArrowDownUp size={11} /></button><span>当前任务</span><span>阶段进度</span><span>进度</span><span /></div>
         {visibleProjects.map((project) => {
           const percent = stagePercent(project.stageIndex)
@@ -242,7 +256,7 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
             </article>
           )
         })}
-        {!visibleProjects.length ? <div className="stage-project-empty"><p>{projects.length ? '没有匹配的项目' : '还没有设计项目'}</p>{projects.length ? <button type="button" onClick={() => { setQuery(''); setFilter('all') }}>查看全部</button> : <button type="button" onClick={() => setEditingId('new')}>添加第一个项目</button>}</div> : null}
+        {!visibleProjects.length ? <div className="stage-project-empty"><p>{projects.length ? (filter === 'dueSoon' ? '7天内没有到期项目' : filter === 'active' ? '没有待推进项目' : '没有匹配的项目') : '还没有设计项目'}</p>{projects.length ? <button type="button" onClick={() => { setQuery(''); setFilter('active') }}>查看待推进项目</button> : <button type="button" onClick={() => setEditingId('new')}>添加第一个项目</button>}</div> : null}
       </div>
 
       {editingId ? <ProjectEditor key={editingId} project={editingProject} labels={labels} onClose={() => setEditingId(null)} onSave={(draft) => { if (editingProject) onUpdate(editingProject.id, draft); else onCreate(draft); setEditingId(null) }} onDelete={editingProject ? () => { if (window.confirm(`删除“${editingProject.name}”？`)) { onDelete(editingProject.id); setEditingId(null) } } : undefined} /> : null}
