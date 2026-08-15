@@ -79,7 +79,7 @@ describe('canonical cloud sync merge', () => {
 
     const visible = applySyncStateToAppState(current, sync)
 
-    expect(visible.stageLabels).toHaveLength(15)
+    expect(visible.stageLabels).toHaveLength(current.stageLabels.length)
     expect(visible.stageLabels[0]).toBe(current.stageLabels[0])
     expect(visible.stageLabels[1]).toBe(current.stageLabels[1])
     expect(visible.stageLabels[2]).toBe('云端第三阶段')
@@ -89,13 +89,13 @@ describe('canonical cloud sync merge', () => {
   it('syncs custom stage names beyond the default stage list', () => {
     const current = createInitialState()
     current.stageLabels = [...current.stageLabels, '竣工摄影', '案例归档']
-    current.stageProjects = [{ id: 'custom-stage', name: '住宅项目', stageIndex: 16, createdAt: '2026-08-14' }]
+    current.stageProjects = [{ id: 'custom-stage', name: '住宅项目', stageIndex: 22, createdAt: '2026-08-14' }]
 
     const visible = applySyncStateToAppState(createInitialState(), createSyncStateFromAppState(current))
 
-    expect(visible.stageLabels).toHaveLength(17)
+    expect(visible.stageLabels).toHaveLength(23)
     expect(visible.stageLabels.slice(-2)).toEqual(['竣工摄影', '案例归档'])
-    expect(visible.stageProjects[0].stageIndex).toBe(16)
+    expect(visible.stageProjects[0].stageIndex).toBe(22)
   })
 
   it('keeps the current theme when a sync setting is invalid', () => {

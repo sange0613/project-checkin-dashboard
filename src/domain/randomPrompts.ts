@@ -1,4 +1,4 @@
-import { createInitialState, type AppState, type RandomCategory, type RandomPromptItem } from './types'
+import { createInitialState, normalizeStageLabels, type AppState, type RandomCategory, type RandomPromptItem } from './types'
 
 export function createDefaultRandomCategories(): RandomCategory[] {
   return createInitialState().randomCategories
@@ -19,7 +19,7 @@ export function normalizeRandomState(state: Partial<AppState>): AppState {
     dailyRandomResults: state.dailyRandomResults ?? {},
     stageProjects: state.stageProjects ?? [],
     stageBoardTitle: state.stageBoardTitle ?? initial.stageBoardTitle,
-    stageLabels: state.stageLabels?.length === 15 ? state.stageLabels : initial.stageLabels,
+    stageLabels: normalizeStageLabels(state.stageLabels),
     theme: state.theme ?? 'system',
   }
 }

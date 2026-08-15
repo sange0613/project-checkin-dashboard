@@ -9,7 +9,7 @@ import {
   stageDayDiff,
   toStageDate,
 } from '../domain/projectStages'
-import type { StageProject, StageProjectDraft } from '../domain/types'
+import { DEFAULT_STAGE_LABELS, type StageProject, type StageProjectDraft } from '../domain/types'
 import { EditableText } from './EditableText'
 
 type Props = {
@@ -170,7 +170,7 @@ function StageNameEditor({ labels, onClose, onSave }: { labels: string[]; onClos
           {draft.map((label, index) => <label key={index}><span>{String(index + 1).padStart(2, '0')}</span><input aria-label={`阶段 ${index + 1}`} value={label} onChange={(event) => setDraft((current) => current.map((item, currentIndex) => currentIndex === index ? event.target.value.slice(0, 16) : item))} /><small>{stagePercent(index)}%</small></label>)}
           {draft.length < 30 ? <button type="button" className="stage-name-add" onClick={() => setDraft((current) => [...current, `新阶段 ${current.length + 1}`])}><Plus size={14} />添加阶段名称</button> : null}
         </div>
-        <footer><button type="button" className="primary-button" disabled={!valid} onClick={() => onSave(draft.map((label) => label.trim()))}><Check size={16} />保存阶段名称</button><button type="button" className="ghost-button" onClick={() => setDraft((current) => current.map((label, index) => PROJECT_STAGES[index]?.shortName ?? label))}>恢复默认名称</button></footer>
+        <footer><button type="button" className="primary-button" disabled={!valid} onClick={() => onSave(draft.map((label) => label.trim()))}><Check size={16} />保存阶段名称</button><button type="button" className="ghost-button" onClick={() => setDraft((current) => current.map((label, index) => DEFAULT_STAGE_LABELS[index] ?? PROJECT_STAGES[index]?.shortName ?? label))}>恢复默认名称</button></footer>
       </aside>
     </div>
   )

@@ -72,6 +72,27 @@ export type AppState = {
   theme: ThemePreference
 }
 
+export const CONSTRUCTION_STAGE_LABELS = ['土建阶段', '水电阶段', '瓦工阶段', '木工阶段', '油漆阶段', '软装阶段'] as const
+
+export const DEFAULT_STAGE_LABELS = [
+  '初次沟通', '设计定金', '现场量尺', '平面方案', '一次方案', 'SU建模', '二次方案', '效果图制作',
+  '效果图沟通', '施工图制作', '图纸对接', '软装搭配', '软装交付', '现场施工', '服务完结',
+  ...CONSTRUCTION_STAGE_LABELS,
+] as const
+
+export function normalizeStageLabels(labels?: readonly unknown[]): string[] {
+  const normalized = labels
+    ?.filter((label): label is string => typeof label === 'string' && Boolean(label.trim()))
+    .map((label) => label.trim().slice(0, 16))
+    .slice(0, 30) ?? []
+  const result = normalized.length ? normalized : [...DEFAULT_STAGE_LABELS]
+  for (const label of CONSTRUCTION_STAGE_LABELS) {
+    if (result.length >= 30) break
+    if (!result.includes(label)) result.push(label)
+  }
+  return result
+}
+
 export function createInitialState(): AppState {
   return {
     title: '项目进度',
@@ -87,7 +108,7 @@ export function createInitialState(): AppState {
     dailyRandomResults: {},
     stageProjects: [],
     stageBoardTitle: '设计项目阶段',
-    stageLabels: ['初次沟通', '设计定金', '现场量尺', '平面方案', '一次方案', 'SU建模', '二次方案', '效果图制作', '效果图沟通', '施工图制作', '图纸对接', '软装搭配', '软装交付', '现场施工', '服务完结'],
+    stageLabels: [...DEFAULT_STAGE_LABELS],
     theme: 'system',
   }
 }

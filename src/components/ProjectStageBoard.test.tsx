@@ -93,8 +93,8 @@ test('adds and saves a custom stage name', async () => {
   await user.click(screen.getByRole('button', { name: '编辑阶段' }))
   const editor = screen.getByRole('dialog', { name: '编辑阶段名称' })
   await user.click(within(editor).getByRole('button', { name: '添加阶段名称' }))
-  await user.clear(within(editor).getByRole('textbox', { name: '阶段 16' }))
-  await user.type(within(editor).getByRole('textbox', { name: '阶段 16' }), '竣工摄影')
+  await user.clear(within(editor).getByRole('textbox', { name: '阶段 22' }))
+  await user.type(within(editor).getByRole('textbox', { name: '阶段 22' }), '竣工摄影')
   await user.click(within(editor).getByRole('button', { name: '保存阶段名称' }))
 
   expect(onLabelsChange).toHaveBeenCalledWith([...state.stageLabels, '竣工摄影'])

@@ -1,4 +1,5 @@
 import {
+  normalizeStageLabels,
   type AppState,
   type RandomCategory,
   type SyncEntityKind,
@@ -410,11 +411,11 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
   }
   const dailyRandomResults = Object.fromEntries(resultsByDate) as AppState['dailyRandomResults']
   const syncedStageLabels = sync.settings.stageLabels?.value
-  const stageLabels = Array.isArray(syncedStageLabels) && syncedStageLabels.length
-    ? syncedStageLabels.slice(0, 30)
-    : Array.from({ length: 15 }, (_, index) =>
+  const stageLabels = normalizeStageLabels(Array.isArray(syncedStageLabels) && syncedStageLabels.length
+    ? syncedStageLabels
+    : Array.from({ length: current.stageLabels.length }, (_, index) =>
       settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''),
-    )
+    ))
   const stageProjects = [...sync.stageProjects]
     .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
     .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => ({
