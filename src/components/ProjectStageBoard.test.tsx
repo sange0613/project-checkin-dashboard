@@ -7,6 +7,7 @@ import { ProjectStageBoard } from './ProjectStageBoard'
 
 function renderBoard() {
   const state = createInitialState()
+  const today = toStageDate(new Date())
   const onCreate = vi.fn()
   const onUpdate = vi.fn()
   const onStageChange = vi.fn()
@@ -14,7 +15,7 @@ function renderBoard() {
     <ProjectStageBoard
       title={state.stageBoardTitle}
       labels={state.stageLabels}
-      projects={[{ id: 'stage-1', name: '住宅设计', stageIndex: 6, createdAt: '2026-08-01T00:00:00.000Z' }]}
+      projects={[{ id: 'stage-1', name: '住宅设计', stageIndex: 6, createdAt: `${today}T00:00:00.000Z`, taskStart: today, taskEnd: addStageDays(today, 7) }]}
       onTitleChange={vi.fn()}
       onLabelsChange={vi.fn()}
       onCreate={onCreate}
@@ -110,7 +111,9 @@ test('hides completed projects by default and locates projects due within seven 
       projects={[
         { id: 'due', name: '即将到期', stageIndex: 4, createdAt: `${today}T00:00:00.000Z`, taskStart: today, taskEnd: addStageDays(today, 2) },
         { id: 'later', name: '稍后到期', stageIndex: 5, createdAt: `${today}T00:00:00.000Z`, taskStart: today, taskEnd: addStageDays(today, 20) },
-        { id: 'complete', name: '服务已完结', stageIndex: 14, createdAt: `${today}T00:00:00.000Z` },
+        { id: 'stage-complete-task-open', name: '阶段完结但任务未完结', stageIndex: 14, createdAt: `${today}T00:00:00.000Z`, taskStart: today, taskEnd: addStageDays(today, 20) },
+        { id: 'future', name: '尚未开始', stageIndex: 3, createdAt: `${today}T00:00:00.000Z`, taskStart: addStageDays(today, 10), taskEnd: addStageDays(today, 20) },
+        { id: 'complete', name: '服务已完结', stageIndex: 14, createdAt: `${today}T00:00:00.000Z`, taskCompleted: true },
       ]}
       onTitleChange={vi.fn()}
       onLabelsChange={vi.fn()}
@@ -124,11 +127,14 @@ test('hides completed projects by default and locates projects due within seven 
   const projectList = screen.getByRole('generic', { name: '阶段项目列表' })
   expect(within(projectList).getByText('即将到期')).toBeVisible()
   expect(within(projectList).getByText('稍后到期')).toBeVisible()
+  expect(within(projectList).getByText('阶段完结但任务未完结')).toBeVisible()
+  expect(within(projectList).queryByText('尚未开始')).not.toBeInTheDocument()
   expect(within(projectList).queryByText('服务已完结')).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: /7天内到期.*1.*点击定位/ }))
   expect(within(projectList).getByText('即将到期')).toBeVisible()
   expect(within(projectList).queryByText('稍后到期')).not.toBeInTheDocument()
+  expect(within(projectList).queryByText('阶段完结但任务未完结')).not.toBeInTheDocument()
 })
 
 test('automatically positions the gantt chart on today', async () => {
@@ -146,6 +152,8 @@ test('automatically positions the gantt chart on today', async () => {
         name: '跨年度项目',
         stageIndex: 3,
         createdAt: `${addStageDays(today, -180)}T00:00:00.000Z`,
+        taskStart: addStageDays(today, -1),
+        taskEnd: addStageDays(today, 7),
         designStart: addStageDays(today, -180),
         designEnd: addStageDays(today, 30),
       }]}

@@ -28,6 +28,10 @@ type Filter = 'all' | 'active' | 'dueSoon' | 'complete'
 type Sort = 'updated' | 'progress' | 'designStart' | 'taskEnd'
 type SortDirection = 'asc' | 'desc'
 
+function isPendingProject(project: ReturnType<typeof hydrateStageProject>, today: string) {
+  return !project.taskCompleted && project.taskStart <= today && project.taskEnd >= today
+}
+
 function shortDate(value: string) {
   return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(`${value}T00:00:00`))
 }
@@ -190,9 +194,9 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
     return [...hydratedProjects]
       .filter((project) => {
         if (filter === 'all') return true
-        if (filter === 'complete') return stagePercent(project.stageIndex) === 100
-        if (filter === 'dueSoon') return !project.taskCompleted && stagePercent(project.stageIndex) < 100 && project.taskEnd >= today && project.taskEnd <= weekEnd
-        return stagePercent(project.stageIndex) < 100
+        if (filter === 'complete') return project.taskCompleted
+        if (filter === 'dueSoon') return !project.taskCompleted && project.taskEnd >= today && project.taskEnd <= weekEnd
+        return isPendingProject(project, today)
       })
       .filter((project) => !needle || `${project.name} ${project.client} ${project.location}`.toLocaleLowerCase().includes(needle))
       .sort((left, right) => {
@@ -202,9 +206,9 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
         return (new Date(left.modifiedAt).getTime() - new Date(right.modifiedAt).getTime()) * direction
       })
   }, [deferredQuery, filter, hydratedProjects, sort, sortDirection, today, weekEnd])
-  const active = hydratedProjects.filter((project) => stagePercent(project.stageIndex) < 100).length
-  const complete = hydratedProjects.length - active
-  const dueSoon = hydratedProjects.filter((project) => !project.taskCompleted && stagePercent(project.stageIndex) < 100 && project.taskEnd >= today && project.taskEnd <= weekEnd).length
+  const active = hydratedProjects.filter((project) => isPendingProject(project, today)).length
+  const complete = hydratedProjects.filter((project) => project.taskCompleted).length
+  const dueSoon = hydratedProjects.filter((project) => !project.taskCompleted && project.taskEnd >= today && project.taskEnd <= weekEnd).length
   const average = hydratedProjects.length ? Math.round(hydratedProjects.reduce((sum, project) => sum + stagePercent(project.stageIndex), 0) / hydratedProjects.length) : 0
   const editingProject = editingId && editingId !== 'new' ? projects.find((project) => project.id === editingId) : undefined
   const selectSort = (next: Sort, defaultDirection: SortDirection = 'asc') => {
@@ -234,8 +238,8 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
 
       <div className="stage-summary" aria-label="项目数据总览">
         <button type="button" data-active={filter === 'all' || undefined} onClick={() => setFilter('all')}><span>全部项目</span><strong>{hydratedProjects.length}</strong><small>所有项目</small></button>
-        <button type="button" data-active={filter === 'active' || undefined} onClick={() => setFilter('active')}><span>待推进</span><strong>{active}</strong><small>未服务完结</small></button>
-        <button type="button" data-active={filter === 'complete' || undefined} onClick={() => setFilter('complete')}><span>已完成</span><strong>{complete}</strong><small>服务完结</small></button>
+        <button type="button" data-active={filter === 'active' || undefined} onClick={() => setFilter('active')}><span>待推进</span><strong>{active}</strong><small>任务期内未完结</small></button>
+        <button type="button" data-active={filter === 'complete' || undefined} onClick={() => setFilter('complete')}><span>已完成</span><strong>{complete}</strong><small>任务已完结</small></button>
         <button type="button" data-active={filter === 'dueSoon' || undefined} onClick={showDueSoon}><span>7天内到期</span><strong>{dueSoon}</strong><small>点击定位</small></button>
         <div><span>平均进度</span><strong>{average}<i>%</i></strong><small>全部项目</small></div>
       </div>
