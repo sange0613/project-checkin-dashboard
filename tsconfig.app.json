@@ -11,11 +11,15 @@
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@app-sync": ["./src/hooks/useSuiteSync.ts"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "vite/client"]
   },
   "include": ["src"]
 }

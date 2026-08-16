@@ -1,12 +1,16 @@
 {
   "name": "project-checkin-dashboard",
+  "productName": "项目进度",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.mjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:standalone": "npm run build && node scripts/build-standalone.mjs",
+    "build:desktop": "tsc -b && vite build --mode desktop --base=./",
+    "dist:win": "npm run build:desktop && electron-builder --win nsis",
     "test": "vitest",
     "test:standalone": "node --test scripts/build-standalone.node-test.mjs",
     "preview": "vite preview"
@@ -27,7 +31,42 @@
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.15.3",
     "jsdom": "^25.0.1",
     "vitest": "^2.1.8"
+  },
+  "build": {
+    "appId": "com.sange1022.projectcheckin",
+    "productName": "项目进度",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "project-checkin-dashboard-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "项目进度",
+      "installerLanguages": ["zh_CN"],
+      "language": "2052"
+    }
   }
 }

@@ -14,3 +14,11 @@
 npm install
 npm run dev
 ```
+
+## Windows 10 本地版
+
+Windows 安装包只使用本机存储，不显示或连接云同步服务。数据可通过页面底部的“导入 / 导出”进行备份与迁移。
+
+```bash
+npm run dist:win
+```

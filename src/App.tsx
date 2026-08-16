@@ -14,10 +14,11 @@ import type { AppState, Project, StageProjectDraft, ViewMode } from './domain/ty
 import { toDateKey } from './domain/dateRanges'
 import { exportState, importState } from './storage/dataTransfer'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
-import { useSuiteSync } from './hooks/useSuiteSync'
+import { useSuiteSync } from '@app-sync'
 import './styles.css'
 
 const repository = createLocalCheckinRepository(window.localStorage)
+const desktopLocalOnly = import.meta.env.VITE_DESKTOP_LOCAL_ONLY === 'true'
 
 const integratedTools = [
   { id: 'daily', label: '饮', name: '每日卡路里', url: 'https://sange1022.github.io/daily-calorie-tracker/' },
@@ -153,7 +154,9 @@ export default function App() {
       ? '刚刚'
       : `${Math.max(1, Math.floor((Date.now() - suiteSync.lastSyncedAt) / 60_000))} 分钟前`
     : ''
-  const syncSummary = suiteSync.status === 'synced'
+  const syncSummary = desktopLocalOnly
+    ? '仅保存在当前电脑'
+    : suiteSync.status === 'synced'
     ? `数据已同步${lastSyncLabel ? ` · ${lastSyncLabel}` : ''}`
     : suiteSync.status === 'syncing'
       ? '正在同步'
@@ -341,7 +344,7 @@ export default function App() {
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
         </div>
         <CheckinActivityHeatmap checkins={state.checkins} today={today} />
-        <SuiteSyncPanel
+        {!desktopLocalOnly ? <SuiteSyncPanel
           code={suiteSync.codeInput}
           connected={Boolean(suiteSync.connectedCode)}
           status={suiteSync.status}
@@ -351,7 +354,7 @@ export default function App() {
           onConnect={() => suiteSync.connect()}
           onCreate={suiteSync.createAndConnect}
           onDisconnect={suiteSync.disconnect}
-        />
+        /> : null}
       </section>
         </>
       )}
