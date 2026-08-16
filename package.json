@@ -1,6 +1,8 @@
 {
   "name": "project-checkin-dashboard",
   "productName": "项目进度",
+  "description": "极简项目进度、阶段与每日打卡管理工具",
+  "author": "sange1022",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,19 +12,10 @@
     "build": "tsc -b && vite build",
     "build:standalone": "npm run build && node scripts/build-standalone.mjs",
     "build:desktop": "tsc -b && vite build --mode desktop --base=./",
-    "dist:win": "npm run build:desktop && electron-builder --win nsis",
+    "dist:win": "npm run build:desktop && electron-builder --win nsis --publish never",
     "test": "vitest",
     "test:standalone": "node --test scripts/build-standalone.node-test.mjs",
     "preview": "vite preview"
-  },
-  "dependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "firebase": "^11.10.0",
-    "lucide-react": "^0.468.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "typescript": "~5.7.2",
-    "vite": "^6.0.7"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
@@ -31,9 +24,16 @@
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.7.0",
     "electron": "^37.10.3",
     "electron-builder": "^26.15.3",
+    "firebase": "^11.10.0",
     "jsdom": "^25.0.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "~5.7.2",
+    "vite": "^6.4.3",
     "vitest": "^2.1.8"
   },
   "build": {
@@ -53,7 +53,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png",
@@ -65,7 +67,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "项目进度",
-      "installerLanguages": ["zh_CN"],
+      "installerLanguages": [
+        "zh_CN"
+      ],
       "language": "2052"
     }
   }
