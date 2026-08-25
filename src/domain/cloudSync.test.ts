@@ -266,6 +266,31 @@ describe('canonical cloud sync merge', () => {
     expect(merged.tombstones.checkins['project-a:2026-07-16']).toEqual({ updatedAt: 20, updatedBy: 'device-new' })
   })
 
+  it('keeps a rapid local check-in when an older cloud snapshot arrives', () => {
+    const before = state({
+      projects: [{ id: 'project-a', name: '项目', createdAt: '2026-08-25', archived: false }],
+      checkins: {},
+    })
+    const olderRemote = reconcileAppStateWithSyncState(
+      createSyncStateFromAppState(before),
+      before,
+      { updatedAt: 10, updatedBy: 'device-old' },
+    )
+    const afterClick = state({
+      projects: before.projects,
+      checkins: { 'project-a': ['2026-08-25'] },
+    })
+    const pendingLocal = reconcileAppStateWithSyncState(
+      olderRemote,
+      afterClick,
+      { updatedAt: 11, updatedBy: 'device-current' },
+    )
+
+    const visible = applySyncStateToAppState(afterClick, mergeSyncStates(olderRemote, pendingLocal))
+
+    expect(visible.checkins).toEqual({ 'project-a': ['2026-08-25'] })
+  })
+
   it('keeps deleted prompt items and stage projects deleted after merging', () => {
     const before = state({
       randomCategories: [

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { DocumentReference, Unsubscribe } from 'firebase/firestore'
 import {
   applySyncStateToAppState,
@@ -34,6 +34,8 @@ const SUITE_DEVICE_KEY = 'project-suite-device-id-v1'
 const SUITE_META_KEY = 'project-suite-sync-meta-v1'
 const DASHBOARD_SYNC_KEY = 'project-suite-dashboard-sync-v2'
 const DAILY_CODE_KEY = 'calorie-tracker-v1-sync-code'
+const PUSH_DEBOUNCE_MS = 2_500
+const LOCAL_EDIT_GUARD_MS = 5_000
 const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   daily: 'calorie-tracker-v1',
   checklist: 'qingdan-app-state-v2',
@@ -134,8 +136,10 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const dashboardSyncRef = useRef<SyncState>(initialDashboardSync)
   const sessionRef = useRef<SyncSession | null>(null)
   const deviceIdRef = useRef(deviceId)
+  const localEditUntilRef = useRef(0)
 
-  useEffect(() => { stateRef.current = state }, [state])
+  // Keep the latest click/edit visible to snapshot callbacks before passive effects run.
+  useLayoutEffect(() => { stateRef.current = state }, [state])
 
   const applySuite = useCallback((suiteValue: unknown) => {
     const suite = normalizeSuiteState(suiteValue)
@@ -223,6 +227,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           return next
         })
         if (!session.disposed) {
+          localEditUntilRef.current = 0
           applySuite(merged)
           setStatus('synced')
           setMessage('已同步')
@@ -235,10 +240,10 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           setMessage(navigator.onLine ? '同步失败，请重试' : '当前离线')
         }
       }
-    }, 800)
+    }, PUSH_DEBOUNCE_MS)
   }, [applySuite, collectLocalSuite])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const session = sessionRef.current
     if (!session?.ready) return
     const value = reconcileAppStateWithSyncState(
@@ -256,6 +261,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     saveDashboardSync(value)
     metaRef.current.dashboard = { fingerprint: nextFingerprint, updatedAt: Date.now(), updatedBy: deviceIdRef.current }
     saveMeta(metaRef.current)
+    localEditUntilRef.current = Date.now() + LOCAL_EDIT_GUARD_MS
     schedulePush()
   }, [schedulePush, state])
 
@@ -312,6 +318,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
 
         session.unsubscribe = onSnapshot(session.document, (snapshot) => {
           if (disposed || !snapshot.exists()) return
+          // A cached/older snapshot must never undo a click that is still waiting to upload.
+          if (Date.now() < localEditUntilRef.current) {
+            schedulePush()
+            return
+          }
           const remote = normalizeSuiteState(snapshot.data().suite)
           const local = collectLocalSuite()
           const next = mergeSuiteStates(remote, local)
