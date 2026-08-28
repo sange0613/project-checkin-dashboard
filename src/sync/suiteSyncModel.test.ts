@@ -19,6 +19,17 @@ describe('suite sync model', () => {
     expect((merged.apps.checklist?.value as { appName: string }).appName).toBe('本地')
   })
 
+  it('syncs the newest item-cost data with the unified document', () => {
+    const olderItems = [{ id: 'chair', name: '椅子', price: 2000, purchaseDate: '2025-01-01' }]
+    const newerItems = [...olderItems, { id: 'lamp', name: '台灯', price: 500, purchaseDate: '2026-01-01' }]
+    const merged = mergeSuiteStates(
+      { apps: { wuwu: { value: olderItems, updatedAt: 10, updatedBy: 'device-a' } } },
+      { apps: { wuwu: { value: newerItems, updatedAt: 20, updatedBy: 'device-b' } } },
+    )
+
+    expect(merged.apps.wuwu?.value).toEqual(newerItems)
+  })
+
   it('unions additions made on different devices', () => {
     const firstDashboard = {
       ...createInitialState(),

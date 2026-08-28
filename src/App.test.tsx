@@ -75,6 +75,7 @@ test.each([
   ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
   ['平面图制作', 'https://sange1022.github.io/floor-plan-maker/'],
+  ['物品日均成本', 'https://sange1022.github.io/wuwu/'],
   ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
   ['间', 'https://sange1022.github.io/random-planar-composition/'],
   ['海', 'https://sange1022.github.io/contour-text-studio/?v=5787e7a'],

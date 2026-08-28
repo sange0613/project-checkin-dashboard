@@ -39,6 +39,7 @@ const LOCAL_EDIT_GUARD_MS = 5_000
 const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   daily: 'calorie-tracker-v1',
   checklist: 'qingdan-app-state-v2',
+  wuwu: 'daily-cost-items-v2',
 }
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>

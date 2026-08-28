@@ -1,7 +1,7 @@
 import { createSyncStateFromAppState, mergeSyncStates, normalizeSyncState } from '../domain/cloudSync'
 import type { AppState, SyncState, VersionStamp } from '../domain/types'
 
-export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist'] as const
+export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist', 'wuwu'] as const
 
 export type SuiteAppId = typeof SUITE_APP_IDS[number]
 
