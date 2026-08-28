@@ -1,7 +1,7 @@
 import { BookOpen, Github, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
-type IntegratedToolId = 'daily' | 'checklist'
+type IntegratedToolId = 'daily' | 'checklist' | 'wuwu'
 
 const secondaryLinks = [
   { label: '英语抄写', short: '抄', href: 'https://sange1022.github.io/english-copywork-trainer/', icon: 'book' },
@@ -11,7 +11,6 @@ const secondaryLinks = [
   { label: '公众号编辑器', short: '公', href: 'https://sange1022.github.io/xuwu-wechat-editor/' },
   { label: '图片拼贴', short: '拼', href: 'https://sange1022.github.io/xuwu-image-collage/' },
   { label: '平面图制作', short: '彩', href: 'https://sange1022.github.io/floor-plan-maker/' },
-  { label: '物品日均成本', short: '物', href: 'https://sange1022.github.io/wuwu/' },
   { label: '构', menuName: '构图工具', short: '构', href: 'https://sange1022.github.io/qf-07-9a6c3e21/' },
   { label: '间', menuName: '随机平面构成', short: '间', href: 'https://sange1022.github.io/random-planar-composition/' },
   { label: '海', menuName: '轮廓文字', short: '海', href: 'https://sange1022.github.io/contour-text-studio/?v=5787e7a' },
@@ -28,6 +27,7 @@ export function ShortcutBar({ onOpenIntegratedTool }: Props) {
     <>
       <button type="button" className="icon-button shortcut-character" aria-label="每日卡路里" title="每日卡路里" onClick={() => onOpenIntegratedTool('daily')}>饮</button>
       <button type="button" className="icon-button shortcut-character" aria-label="清单打卡" title="清单打卡" onClick={() => onOpenIntegratedTool('checklist')}>清</button>
+      <button type="button" className="icon-button shortcut-character" aria-label="物品日均成本" title="物品日均成本" onClick={() => onOpenIntegratedTool('wuwu')}>物</button>
       <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
       <a className="icon-button shortcut-character vocabulary-shortcut" href="https://sange1022.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="英语词汇学习">词</a>
 

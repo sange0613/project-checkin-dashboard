@@ -64,8 +64,8 @@ test('places the synced tools first with daily at the front', () => {
   render(<App />)
   const actions = document.querySelector('.top-actions')
   expect(actions).not.toBeNull()
-  expect(Array.from(actions?.children ?? []).slice(0, 3).map((item) => item.getAttribute('aria-label')))
-    .toEqual(['每日卡路里', '清单打卡', '字间排版'])
+  expect(Array.from(actions?.children ?? []).slice(0, 4).map((item) => item.getAttribute('aria-label')))
+    .toEqual(['每日卡路里', '清单打卡', '物品日均成本', '字间排版'])
 })
 
 test.each([
@@ -75,7 +75,6 @@ test.each([
   ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
   ['平面图制作', 'https://sange1022.github.io/floor-plan-maker/'],
-  ['物品日均成本', 'https://sange1022.github.io/wuwu/'],
   ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
   ['间', 'https://sange1022.github.io/random-planar-composition/'],
   ['海', 'https://sange1022.github.io/contour-text-studio/?v=5787e7a'],
@@ -88,7 +87,7 @@ test.each([
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
 
-test('opens and switches the integrated daily and checklist tools', async () => {
+test('opens and switches the integrated daily, checklist, and item cost tools', async () => {
   const user = userEvent.setup()
   render(<App />)
 
@@ -100,6 +99,10 @@ test('opens and switches the integrated daily and checklist tools', async () => 
   await user.click(screen.getByRole('button', { name: '清单打卡' }))
   expect(within(tools).getByTitle('清单打卡')).toHaveAttribute('src', 'https://sange1022.github.io/qingdan-checklist/')
   expect(within(tools).getByTitle('每日卡路里')).not.toBeVisible()
+
+  await user.click(screen.getByRole('button', { name: '物品日均成本' }))
+  expect(within(tools).getByTitle('物品日均成本')).toHaveAttribute('src', 'https://sange1022.github.io/wuwu/')
+  expect(within(tools).getByTitle('清单打卡')).not.toBeVisible()
 
   await user.click(screen.getByRole('button', { name: '关闭综合工具' }))
   expect(screen.queryByRole('region', { name: '综合工具' })).not.toBeInTheDocument()
@@ -161,7 +164,7 @@ test('keeps sync settings collapsed until requested', async () => {
   const sync = screen.getByRole('region', { name: '数据同步' })
   expect(within(sync).queryByRole('textbox', { name: '同步码' })).not.toBeInTheDocument()
   await user.click(within(sync).getByRole('button', { name: '展开同步设置' }))
-  expect(within(sync).getByText('项目、饮食与清单数据')).toBeVisible()
+  expect(within(sync).getByText('项目、饮食、清单与物品数据')).toBeVisible()
   expect(within(sync).getByRole('textbox', { name: '同步码' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '连接' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '新建同步码' })).toBeVisible()

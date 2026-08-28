@@ -23,6 +23,7 @@ const desktopLocalOnly = import.meta.env.VITE_DESKTOP_LOCAL_ONLY === 'true'
 const integratedTools = [
   { id: 'daily', label: '饮', name: '每日卡路里', url: 'https://sange1022.github.io/daily-calorie-tracker/' },
   { id: 'checklist', label: '清', name: '清单打卡', url: 'https://sange1022.github.io/qingdan-checklist/' },
+  { id: 'wuwu', label: '物', name: '物品日均成本', url: 'https://sange1022.github.io/wuwu/' },
 ] as const
 
 type IntegratedToolId = typeof integratedTools[number]['id']

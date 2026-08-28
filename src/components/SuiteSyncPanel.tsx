@@ -24,7 +24,7 @@ export function SuiteSyncPanel({ code, connected, status, message, lastSyncedAt,
       <div className="suite-sync-heading">
         <div className="suite-sync-title">
           <h2>数据同步</h2>
-          {expanded ? <p>项目、饮食与清单数据</p> : null}
+          {expanded ? <p>项目、饮食、清单与物品数据</p> : null}
         </div>
         <div className="suite-sync-heading-actions">
           <span className="suite-sync-status" data-status={status} role="status">
