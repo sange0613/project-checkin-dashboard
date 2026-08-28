@@ -353,6 +353,55 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
   .stage-percent { font-size: 12px; }
 }
 
+/* iPad Pro 11-inch: isolate the touch layout so desktop and phone stay unchanged. */
+@media (min-width: 761px) and (max-width: 1194px) and (pointer: coarse) {
+  .app-shell { width: calc(100% - 16px); min-height: calc(100vh - 16px); margin: 8px auto; border-radius: 16px; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr); gap: 14px 24px; padding: 15px 24px 14px; }
+  .page-title { font-size: 22px; }
+  .view-switcher { justify-self: start; }
+  .view-switcher button { min-width: 60px; min-height: 38px; padding-inline: 14px; }
+  .top-actions { grid-column: 1 / -1; justify-content: flex-start; gap: 6px; }
+  .desktop-shortcuts { display: none; }
+  .shortcut-more-wrap { display: inline-flex; }
+  .top-actions .icon-button { width: 40px; min-height: 40px; flex-basis: 40px; }
+  .top-actions .new-project-button { min-height: 40px; padding-inline: 13px; }
+  .shortcut-popover a { min-height: 44px; font-size: 13px; }
+  .integrated-toolbar { min-height: 56px; padding: 8px 18px; }
+  .integrated-tabs button { min-height: 40px; padding-inline: 13px; font-size: 13px; }
+  .integrated-toolbar-actions .icon-button { width: 40px; min-height: 40px; }
+  .integrated-frame-stack { height: calc(100dvh - 190px); min-height: 650px; }
+  .daily-random button { min-height: 86px; }
+  .workspace { padding: 30px 24px 22px; }
+  .period-toolbar { min-height: 68px; margin-bottom: 20px; }
+  .month-navigation .icon-button, .month-navigation .today-button { min-height: 40px; }
+  .progress-grid { grid-template-columns: 176px repeat(var(--time-columns), 32px) 128px; column-gap: 7px; }
+  .grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 150px repeat(12, 44px) 92px; column-gap: 8px; }
+  .project-name-cell, .project-menu, .project-actions { min-height: 48px; }
+  .checkin-cell { width: 30px; height: 30px; border-radius: 8px; touch-action: manipulation; }
+  .project-actions button { width: 34px; height: 34px; }
+  .stage-portfolio-heading .primary-button, .stage-portfolio-tools > label, .stage-select-wrap select, .stage-portfolio-tools .ghost-button { min-height: 42px; }
+  .stage-portfolio-tools > label, .stage-select-wrap select { height: 42px; }
+  .stage-summary > * { min-height: 96px; }
+  .stage-gantt-row { height: 54px; }
+  .stage-design-bar, .stage-task-bar { top: 17px; height: 21px; }
+  .stage-project-table { border: 0; overflow: visible; }
+  .stage-project-head { display: none; }
+  .stage-project-row { position: relative; min-width: 0; min-height: 0; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; margin-bottom: 10px; padding: 16px 18px; border: 1px solid #eeeeea; border-radius: 12px; }
+  .stage-project-name { grid-column: 1; }
+  .stage-percent { grid-column: 2; grid-row: 1; align-self: start; font-size: 13px; }
+  .stage-design-period { grid-column: 1 / -1; }
+  .stage-current-stage { grid-column: 1; min-height: 30px; }
+  .stage-project-row time { grid-column: 2; text-align: right; }
+  .stage-portfolio-rail { grid-column: 1 / -1; }
+  .stage-edit-button { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+  .stage-editor { width: min(560px, 78vw); }
+  .stage-editor input { height: 44px; }
+  .stage-editor label > span, .stage-editor legend { font-size: 12px; }
+  .activity-modes button { min-height: 40px; }
+  .suite-sync-toggle { width: 40px; height: 40px; }
+  .suite-sync-controls input, .suite-sync-controls .primary-button, .suite-sync-controls .ghost-button { min-height: 42px; }
+}
+
 @media (max-width: 760px) {
   .app-shell { width: 100%; min-height: 100vh; margin: 0; border: 0; border-radius: 0; }
   .topbar { grid-template-columns: 1fr auto; padding: 14px 18px; gap: 12px; }
