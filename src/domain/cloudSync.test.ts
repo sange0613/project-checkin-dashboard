@@ -98,6 +98,15 @@ describe('canonical cloud sync merge', () => {
     expect(visible.stageProjects[0].stageIndex).toBe(22)
   })
 
+  it('syncs all six not-doing list entries', () => {
+    const current = createInitialState()
+    current.notDoingItems = ['不刷短视频', '不熬夜', '', '不冲动购物', '', '不拖延']
+
+    const visible = applySyncStateToAppState(createInitialState(), createSyncStateFromAppState(current))
+
+    expect(visible.notDoingItems).toEqual(current.notDoingItems)
+  })
+
   it('keeps the current theme when a sync setting is invalid', () => {
     const current = state({ theme: 'dark' })
     const sync = normalizeSyncState({

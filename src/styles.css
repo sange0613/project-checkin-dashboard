@@ -60,6 +60,13 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .daily-random small { color: #888882; font-size: 10px; letter-spacing: .12em; }
 .daily-random strong { font-size: 16px; font-weight: 700; }
 .daily-random .locked strong { color: #292927; }
+.not-doing-list { display: grid; grid-template-columns: 96px repeat(6, minmax(100px, 1fr)); overflow-x: auto; border-bottom: 1px solid #ecece7; scrollbar-width: none; }
+.not-doing-list::-webkit-scrollbar { display: none; }
+.not-doing-list > strong { position: sticky; left: 0; z-index: 2; min-height: 46px; display: flex; align-items: center; padding: 0 18px; background: var(--theme-surface); color: #777771; font-size: 11px; white-space: nowrap; }
+.not-doing-list label { min-width: 100px; border-left: 1px solid #eeeeea; }
+.not-doing-list input { width: 100%; min-height: 46px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; outline: 0; background: transparent; color: inherit; text-align: center; font-size: 12px; font-weight: 600; text-overflow: ellipsis; }
+.not-doing-list input::placeholder { color: #b0b0aa; font-weight: 500; }
+.not-doing-list input:focus { border-bottom-color: #292927; background: #fafaf8; }
 .icon-button, .new-project-button, .today-button, .ghost-button, .primary-button { min-height: 34px; border: 1px solid #deded8; background: #fff; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .icon-button { width: 32px; padding: 0; flex: 0 0 32px; }
 .top-actions a.icon-button { text-decoration: none; }
@@ -480,6 +487,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .today-button,
 [data-theme="dark"] .ghost-button,
 [data-theme="dark"] .daily-random button,
+[data-theme="dark"] .not-doing-list,
+[data-theme="dark"] .not-doing-list label,
 [data-theme="dark"] .project-name-cell,
 [data-theme="dark"] .menu-spacer,
 [data-theme="dark"] .project-actions,
@@ -533,6 +542,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 [data-theme="dark"] .data-transfer button:hover {
   background: #2c2c29;
 }
+[data-theme="dark"] .not-doing-list > strong { background: #222220; color: #aaa9a2; }
+[data-theme="dark"] .not-doing-list input:focus { border-bottom-color: #eeeeea; background: #292927; }
 
 [data-theme="dark"] .checkin-cell {
   background: #353532;

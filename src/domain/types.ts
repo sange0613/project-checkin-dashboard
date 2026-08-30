@@ -66,10 +66,18 @@ export type AppState = {
   checkins: Record<string, string[]>
   randomCategories: RandomCategory[]
   dailyRandomResults: Record<string, Partial<Record<RandomCategory['id'], RandomResult>>>
+  notDoingItems: string[]
   stageProjects: StageProject[]
   stageBoardTitle: string
   stageLabels: string[]
   theme: ThemePreference
+}
+
+export function normalizeNotDoingItems(items?: readonly unknown[]): string[] {
+  return Array.from({ length: 6 }, (_, index) => {
+    const item = items?.[index]
+    return typeof item === 'string' ? item.trim().slice(0, 30) : ''
+  })
 }
 
 export const CONSTRUCTION_STAGE_LABELS = ['土建阶段', '水电阶段', '瓦工阶段', '木工阶段', '油漆阶段', '软装阶段'] as const
@@ -106,6 +114,7 @@ export function createInitialState(): AppState {
       { id: 'mind', name: '建脑', items: [{ id: 'mind-history', name: '历史' }, { id: 'mind-philosophy', name: '哲学' }, { id: 'mind-humanity', name: '人性' }, { id: 'mind-biography', name: '传记' }, { id: 'mind-physics', name: '物理' }, { id: 'mind-literature', name: '文学' }] },
     ],
     dailyRandomResults: {},
+    notDoingItems: normalizeNotDoingItems(),
     stageProjects: [],
     stageBoardTitle: '设计项目阶段',
     stageLabels: [...DEFAULT_STAGE_LABELS],

@@ -1,4 +1,5 @@
 import type { AppState, ViewMode } from '../domain/types'
+import { normalizeRandomState } from '../domain/randomPrompts'
 
 type BackupEnvelope = {
   version: 1
@@ -44,7 +45,7 @@ export function importState(content: string): AppState {
   try {
     const backup = JSON.parse(content) as Partial<BackupEnvelope>
     if (backup.version !== 1 || !isAppState(backup.state)) throw new Error()
-    return backup.state
+    return normalizeRandomState(backup.state)
   } catch {
     throw new Error('备份文件格式不正确')
   }

@@ -12,6 +12,16 @@ test('renders the default editable page title', () => {
   expect(screen.queryByText(/个项目 · 仅保存在此浏览器/)).not.toBeInTheDocument()
 })
 
+test('edits six not-doing list items below the random panel', async () => {
+  const user = userEvent.setup()
+  render(<App />)
+  const list = screen.getByRole('region', { name: '不为清单' })
+  const inputs = within(list).getAllByRole('textbox')
+  expect(inputs).toHaveLength(6)
+  await user.type(inputs[0], '不刷短视频')
+  expect(inputs[0]).toHaveValue('不刷短视频')
+})
+
 test('opens on the current month even when the saved month is stale', () => {
   const saved = { ...createInitialState(), anchorDate: '2025-01-01T00:00:00.000Z' }
   localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state: saved }))

@@ -4,6 +4,7 @@ import { EditableText } from './components/EditableText'
 import { ProjectDialog } from './components/ProjectDialog'
 import { ProjectGrid } from './components/ProjectGrid'
 import { DailyRandomPanel } from './components/DailyRandomPanel'
+import { NotDoingList } from './components/NotDoingList'
 import { RandomPromptManager } from './components/RandomPromptManager'
 import { RandomHistory } from './components/RandomHistory'
 import { ProjectStageBoard } from './components/ProjectStageBoard'
@@ -131,6 +132,11 @@ export default function App() {
   const renameProject = (projectId: string, name: string) => update((current) => ({
     ...current,
     projects: current.projects.map((project) => project.id === projectId ? { ...project, name } : project),
+  }))
+
+  const updateNotDoingItem = (index: number, value: string) => update((current) => ({
+    ...current,
+    notDoingItems: current.notDoingItems.map((item, itemIndex) => itemIndex === index ? value.slice(0, 30) : item),
   }))
 
   const deleteProject = (projectId: string) => update((current) => {
@@ -274,6 +280,7 @@ export default function App() {
       ) : (
         <>
           <DailyRandomPanel categories={state.randomCategories} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
+          <NotDoingList items={state.notDoingItems} onChange={updateNotDoingItem} />
 
           <section className="workspace">
         {searchOpen && (

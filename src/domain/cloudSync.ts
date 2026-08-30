@@ -1,5 +1,6 @@
 import {
   normalizeStageLabels,
+  normalizeNotDoingItems,
   type AppState,
   type RandomCategory,
   type SyncEntityKind,
@@ -243,6 +244,7 @@ export function createSyncStateFromAppState(state: AppState): SyncState {
     title: setting(state.title),
     theme: setting(state.theme),
     stageBoardTitle: setting(state.stageBoardTitle),
+    notDoingItems: setting(normalizeNotDoingItems(state.notDoingItems)),
     stageLabels: setting(state.stageLabels),
     ...Object.fromEntries(state.stageLabels.map((label, index) => [`stageLabel:${index}`, setting(label)])),
     ...Object.fromEntries(state.randomCategories.map((category) => [`categoryName:${category.id}`, setting(category.name)])),
@@ -411,6 +413,7 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
   }
   const dailyRandomResults = Object.fromEntries(resultsByDate) as AppState['dailyRandomResults']
   const syncedStageLabels = sync.settings.stageLabels?.value
+  const syncedNotDoingItems = sync.settings.notDoingItems?.value
   const stageLabels = normalizeStageLabels(Array.isArray(syncedStageLabels) && syncedStageLabels.length
     ? syncedStageLabels
     : Array.from({ length: current.stageLabels.length }, (_, index) =>
@@ -430,6 +433,7 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     checkins,
     randomCategories,
     dailyRandomResults,
+    notDoingItems: normalizeNotDoingItems(Array.isArray(syncedNotDoingItems) ? syncedNotDoingItems : current.notDoingItems),
     stageProjects,
     stageBoardTitle: settingString(sync, 'stageBoardTitle', current.stageBoardTitle),
     stageLabels,
