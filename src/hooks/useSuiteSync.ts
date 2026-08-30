@@ -138,6 +138,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const sessionRef = useRef<SyncSession | null>(null)
   const deviceIdRef = useRef(deviceId)
   const localEditUntilRef = useRef(0)
+  const localRevisionRef = useRef(0)
 
   // Keep the latest click/edit visible to snapshot callbacks before passive effects run.
   useLayoutEffect(() => { stateRef.current = state }, [state])
@@ -200,7 +201,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       let meta = metaRef.current[id]
 
       if (!meta || meta.fingerprint !== valueFingerprint) {
-        meta = { fingerprint: valueFingerprint, updatedAt: Date.now(), updatedBy: deviceIdRef.current }
+        meta = {
+          fingerprint: valueFingerprint,
+          updatedAt: Math.max(Date.now(), (meta?.updatedAt ?? 0) + 1),
+          updatedBy: deviceIdRef.current,
+        }
         metaRef.current[id] = meta
       }
       apps[id] = { value, updatedAt: meta.updatedAt, updatedBy: meta.updatedBy }
@@ -217,6 +222,8 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     setMessage('正在同步…')
     session.timer = setTimeout(async () => {
       if (session.disposed) return
+      session.timer = undefined
+      const collectedRevision = localRevisionRef.current
       try {
         const { runTransaction, serverTimestamp } = await import('firebase/firestore')
         const local = collectLocalSuite()
@@ -228,6 +235,12 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           return next
         })
         if (!session.disposed) {
+          // A newer click happened while this transaction was in flight.
+          // Never paint the older transaction result over that local state.
+          if (localRevisionRef.current !== collectedRevision) {
+            schedulePush()
+            return
+          }
           localEditUntilRef.current = 0
           applySuite(merged)
           setStatus('synced')
@@ -246,7 +259,6 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
 
   useLayoutEffect(() => {
     const session = sessionRef.current
-    if (!session?.ready) return
     const value = reconcileAppStateWithSyncState(
       dashboardSyncRef.current,
       state,
@@ -262,8 +274,9 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     saveDashboardSync(value)
     metaRef.current.dashboard = { fingerprint: nextFingerprint, updatedAt: Date.now(), updatedBy: deviceIdRef.current }
     saveMeta(metaRef.current)
+    localRevisionRef.current += 1
     localEditUntilRef.current = Date.now() + LOCAL_EDIT_GUARD_MS
-    schedulePush()
+    if (session?.ready) schedulePush()
   }, [schedulePush, state])
 
   useEffect(() => {
@@ -293,7 +306,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         session.document = doc(db, 'syncSpaces', await deriveSuiteDocumentId(connectedCode))
         const legacyDailyDocument = doc(db, 'syncSpaces', connectedCode)
 
-        const merged = await runTransaction(db, async (transaction) => {
+        const connectionResult = await runTransaction(db, async (transaction) => {
           const snapshot = await transaction.get(session.document)
           const legacyDailySnapshot = await transaction.get(legacyDailyDocument)
           let remote = normalizeSuiteState(snapshot.exists() ? snapshot.data().suite : undefined)
@@ -304,18 +317,26 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
               apps: { daily: { value: legacyDailyData, updatedAt: 0, updatedBy: 'legacy-daily' } },
             })
           }
+          const collectedRevision = localRevisionRef.current
           const local = collectLocalSuite()
           const next = mergeSuiteStates(remote, local)
           transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
-          return next
+          return { next, collectedRevision }
         })
         if (disposed) return
-        applySuite(merged)
         localStorage.removeItem(DAILY_CODE_KEY)
         session.ready = true
-        setStatus('synced')
-        setMessage('已同步')
-        setLastSyncedAt(Date.now())
+        if (localRevisionRef.current === connectionResult.collectedRevision) {
+          applySuite(connectionResult.next)
+          localEditUntilRef.current = 0
+          setStatus('synced')
+          setMessage('已同步')
+          setLastSyncedAt(Date.now())
+        } else {
+          // The user edited during the initial network request; keep it visible
+          // and immediately upload it instead of applying the older response.
+          schedulePush()
+        }
 
         session.unsubscribe = onSnapshot(session.document, (snapshot) => {
           if (disposed || !snapshot.exists()) return
@@ -369,8 +390,15 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       if (!id || !sessionRef.current?.ready) return
       const value = parseJson(event.newValue)
       if (value === undefined) return
-      metaRef.current[id] = { fingerprint: fingerprint(value), updatedAt: Date.now(), updatedBy: deviceIdRef.current }
+      const previousMeta = metaRef.current[id]
+      metaRef.current[id] = {
+        fingerprint: fingerprint(value),
+        updatedAt: Math.max(Date.now(), (previousMeta?.updatedAt ?? 0) + 1),
+        updatedBy: deviceIdRef.current,
+      }
       saveMeta(metaRef.current)
+      localRevisionRef.current += 1
+      localEditUntilRef.current = Date.now() + LOCAL_EDIT_GUARD_MS
       schedulePush()
     }
     window.addEventListener('storage', onStorage)
