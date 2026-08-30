@@ -107,6 +107,17 @@ describe('canonical cloud sync merge', () => {
     expect(visible.notDoingItems).toEqual(current.notDoingItems)
   })
 
+  it('syncs the current and total progress values', () => {
+    const current = createInitialState()
+    current.progressCurrent = 37
+    current.progressTotal = 80
+
+    const visible = applySyncStateToAppState(createInitialState(), createSyncStateFromAppState(current))
+
+    expect(visible.progressCurrent).toBe(37)
+    expect(visible.progressTotal).toBe(80)
+  })
+
   it('keeps the current theme when a sync setting is invalid', () => {
     const current = state({ theme: 'dark' })
     const sync = normalizeSyncState({

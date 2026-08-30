@@ -22,6 +22,24 @@ test('edits six not-doing list items below the random panel', async () => {
   expect(inputs[0]).toHaveValue('不刷短视频')
 })
 
+test('sets and displays the goal progress above the random panel', async () => {
+  const user = userEvent.setup()
+  render(<App />)
+  const progress = screen.getByRole('region', { name: '目标进度' })
+  expect(within(progress).getByRole('progressbar')).toHaveAttribute('aria-valuetext', '0%')
+
+  await user.click(screen.getByText('设置进度'))
+  const total = screen.getByRole('spinbutton', { name: '总数' })
+  const current = screen.getByRole('spinbutton', { name: '目前数字' })
+  await user.clear(total)
+  await user.type(total, '80')
+  await user.clear(current)
+  await user.type(current, '20')
+
+  expect(within(progress).getByText('20 / 80 · 25%')).toBeVisible()
+  expect(within(progress).getByRole('progressbar')).toHaveAttribute('aria-valuetext', '25%')
+})
+
 test('opens on the current month even when the saved month is stale', () => {
   const saved = { ...createInitialState(), anchorDate: '2025-01-01T00:00:00.000Z' }
   localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state: saved }))

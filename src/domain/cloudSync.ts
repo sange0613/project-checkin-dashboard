@@ -1,6 +1,7 @@
 import {
   normalizeStageLabels,
   normalizeNotDoingItems,
+  normalizeProgressValue,
   type AppState,
   type RandomCategory,
   type SyncEntityKind,
@@ -245,6 +246,8 @@ export function createSyncStateFromAppState(state: AppState): SyncState {
     theme: setting(state.theme),
     stageBoardTitle: setting(state.stageBoardTitle),
     notDoingItems: setting(normalizeNotDoingItems(state.notDoingItems)),
+    progressCurrent: setting(normalizeProgressValue(state.progressCurrent, 0)),
+    progressTotal: setting(normalizeProgressValue(state.progressTotal, 100, 1)),
     stageLabels: setting(state.stageLabels),
     ...Object.fromEntries(state.stageLabels.map((label, index) => [`stageLabel:${index}`, setting(label)])),
     ...Object.fromEntries(state.randomCategories.map((category) => [`categoryName:${category.id}`, setting(category.name)])),
@@ -414,6 +417,11 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
   const dailyRandomResults = Object.fromEntries(resultsByDate) as AppState['dailyRandomResults']
   const syncedStageLabels = sync.settings.stageLabels?.value
   const syncedNotDoingItems = sync.settings.notDoingItems?.value
+  const progressTotal = normalizeProgressValue(sync.settings.progressTotal?.value, current.progressTotal, 1)
+  const progressCurrent = Math.min(
+    normalizeProgressValue(sync.settings.progressCurrent?.value, current.progressCurrent),
+    progressTotal,
+  )
   const stageLabels = normalizeStageLabels(Array.isArray(syncedStageLabels) && syncedStageLabels.length
     ? syncedStageLabels
     : Array.from({ length: current.stageLabels.length }, (_, index) =>
@@ -434,6 +442,8 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     randomCategories,
     dailyRandomResults,
     notDoingItems: normalizeNotDoingItems(Array.isArray(syncedNotDoingItems) ? syncedNotDoingItems : current.notDoingItems),
+    progressCurrent,
+    progressTotal,
     stageProjects,
     stageBoardTitle: settingString(sync, 'stageBoardTitle', current.stageBoardTitle),
     stageLabels,

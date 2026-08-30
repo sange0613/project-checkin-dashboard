@@ -5,6 +5,7 @@ import { ProjectDialog } from './components/ProjectDialog'
 import { ProjectGrid } from './components/ProjectGrid'
 import { DailyRandomPanel } from './components/DailyRandomPanel'
 import { NotDoingList } from './components/NotDoingList'
+import { GoalProgress, GoalProgressSettings } from './components/GoalProgress'
 import { RandomPromptManager } from './components/RandomPromptManager'
 import { RandomHistory } from './components/RandomHistory'
 import { ProjectStageBoard } from './components/ProjectStageBoard'
@@ -137,6 +138,16 @@ export default function App() {
   const updateNotDoingItem = (index: number, value: string) => update((current) => ({
     ...current,
     notDoingItems: current.notDoingItems.map((item, itemIndex) => itemIndex === index ? value.slice(0, 30) : item),
+  }))
+
+  const updateProgressTotal = (value: number) => update((current) => {
+    const progressTotal = Number.isFinite(value) ? Math.max(1, Math.round(value)) : 1
+    return { ...current, progressTotal, progressCurrent: Math.min(current.progressCurrent, progressTotal) }
+  })
+
+  const updateProgressCurrent = (value: number) => update((current) => ({
+    ...current,
+    progressCurrent: Number.isFinite(value) ? Math.min(current.progressTotal, Math.max(0, Math.round(value))) : 0,
   }))
 
   const deleteProject = (projectId: string) => update((current) => {
@@ -279,6 +290,7 @@ export default function App() {
         />
       ) : (
         <>
+          <GoalProgress current={state.progressCurrent} total={state.progressTotal} />
           <DailyRandomPanel categories={state.randomCategories} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
           <NotDoingList items={state.notDoingItems} onChange={updateNotDoingItem} />
 
@@ -348,6 +360,7 @@ export default function App() {
           </div>
         </footer>
         <div className="bottom-panels">
+          <GoalProgressSettings current={state.progressCurrent} total={state.progressTotal} onCurrentChange={updateProgressCurrent} onTotalChange={updateProgressTotal} />
           <RandomPromptManager categories={state.randomCategories} onAdd={addRandomItem} onRename={renameRandomItem} onDelete={deleteRandomItem} />
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
         </div>

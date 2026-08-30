@@ -67,6 +67,8 @@ export type AppState = {
   randomCategories: RandomCategory[]
   dailyRandomResults: Record<string, Partial<Record<RandomCategory['id'], RandomResult>>>
   notDoingItems: string[]
+  progressCurrent: number
+  progressTotal: number
   stageProjects: StageProject[]
   stageBoardTitle: string
   stageLabels: string[]
@@ -78,6 +80,12 @@ export function normalizeNotDoingItems(items?: readonly unknown[]): string[] {
     const item = items?.[index]
     return typeof item === 'string' ? item.trim().slice(0, 30) : ''
   })
+}
+
+export function normalizeProgressValue(value: unknown, fallback: number, minimum = 0): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(minimum, Math.round(value))
+    : fallback
 }
 
 export const CONSTRUCTION_STAGE_LABELS = ['土建阶段', '水电阶段', '瓦工阶段', '木工阶段', '油漆阶段', '软装阶段'] as const
@@ -115,6 +123,8 @@ export function createInitialState(): AppState {
     ],
     dailyRandomResults: {},
     notDoingItems: normalizeNotDoingItems(),
+    progressCurrent: 0,
+    progressTotal: 100,
     stageProjects: [],
     stageBoardTitle: '设计项目阶段',
     stageLabels: [...DEFAULT_STAGE_LABELS],

@@ -24,4 +24,6 @@ test('fills random fields without changing existing app data', () => {
   expect(normalized.randomCategories).toHaveLength(3)
   expect(normalized.dailyRandomResults).toEqual({})
   expect(normalized.notDoingItems).toEqual(['', '', '', '', '', ''])
+  expect(normalized.progressCurrent).toBe(0)
+  expect(normalized.progressTotal).toBe(100)
 })
