@@ -45,7 +45,7 @@ test('opens on the current month even when the saved month is stale', () => {
   localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state: saved }))
   render(<App />)
   const now = new Date()
-  expect(screen.getByRole('heading', { name: `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}号` })).toBeVisible()
+  expect(screen.getByRole('heading', { name: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月` })).toBeVisible()
 })
 
 test('edits the title and creates a project', async () => {
