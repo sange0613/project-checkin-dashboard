@@ -165,7 +165,7 @@ export default function App() {
     return { ...current, projects }
   })
 
-  const monthTitle = `${anchor.getFullYear()} 年 ${anchor.getMonth() + 1} 月`
+  const monthTitle = `${anchor.getFullYear()}年${anchor.getMonth() + 1}月${anchor.getDate()}号`
   const todayKey = toDateKey(today)
   const lastSyncLabel = suiteSync.lastSyncedAt
     ? Date.now() - suiteSync.lastSyncedAt < 60_000
