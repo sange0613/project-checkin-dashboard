@@ -5,6 +5,7 @@ import {
   createSyncStateFromAppState,
   latestSyncTimestamp,
   normalizeSyncState,
+  rebaseLocalSyncChanges,
   reconcileAppStateWithSyncState,
 } from '../domain/cloudSync'
 import type { AppState, SyncState } from '../domain/types'
@@ -35,7 +36,6 @@ const SUITE_META_KEY = 'project-suite-sync-meta-v1'
 const DASHBOARD_SYNC_KEY = 'project-suite-dashboard-sync-v2'
 const DAILY_CODE_KEY = 'calorie-tracker-v1-sync-code'
 const PUSH_DEBOUNCE_MS = 2_500
-const LOCAL_EDIT_GUARD_MS = 5_000
 const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   daily: 'calorie-tracker-v1',
   checklist: 'qingdan-app-state-v2',
@@ -135,10 +135,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const stateRef = useRef(state)
   const metaRef = useRef<SyncMeta>(initialMeta)
   const dashboardSyncRef = useRef<SyncState>(initialDashboardSync)
+  const acceptedDashboardSyncRef = useRef<SyncState>(initialDashboardSync)
   const sessionRef = useRef<SyncSession | null>(null)
   const deviceIdRef = useRef(deviceId)
-  const localEditUntilRef = useRef(0)
   const localRevisionRef = useRef(0)
+  const acceptedRevisionRef = useRef(0)
 
   // Keep the latest click/edit visible to snapshot callbacks before passive effects run.
   useLayoutEffect(() => { stateRef.current = state }, [state])
@@ -156,6 +157,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         const nextFingerprint = fingerprint(syncedDashboard)
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         dashboardSyncRef.current = syncedDashboard
+        acceptedDashboardSyncRef.current = syncedDashboard
         saveDashboardSync(syncedDashboard)
         setState((current) => {
           const next = applySyncStateToAppState(current, syncedDashboard)
@@ -230,6 +232,18 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         const merged = await runTransaction(session.document.firestore, async (transaction) => {
           const snapshot = await transaction.get(session.document)
           const remote = normalizeSuiteState(snapshot.exists() ? snapshot.data().suite : undefined)
+          const localDashboard = local.apps.dashboard
+          const remoteDashboard = remote.apps.dashboard
+          if (localDashboard && remoteDashboard) {
+            localDashboard.value = rebaseLocalSyncChanges(
+              acceptedDashboardSyncRef.current,
+              normalizeSyncState(localDashboard.value),
+              normalizeSyncState(remoteDashboard.value),
+              deviceIdRef.current,
+            )
+            localDashboard.updatedAt = Math.max(localDashboard.updatedAt, remoteDashboard.updatedAt + 1)
+            localDashboard.updatedBy = deviceIdRef.current
+          }
           const next = mergeSuiteStates(remote, local)
           transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
           return next
@@ -241,7 +255,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
             schedulePush()
             return
           }
-          localEditUntilRef.current = 0
+          acceptedRevisionRef.current = collectedRevision
           applySuite(merged)
           setStatus('synced')
           setMessage('已同步')
@@ -275,7 +289,6 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     metaRef.current.dashboard = { fingerprint: nextFingerprint, updatedAt: Date.now(), updatedBy: deviceIdRef.current }
     saveMeta(metaRef.current)
     localRevisionRef.current += 1
-    localEditUntilRef.current = Date.now() + LOCAL_EDIT_GUARD_MS
     if (session?.ready) schedulePush()
   }, [schedulePush, state])
 
@@ -319,6 +332,18 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           }
           const collectedRevision = localRevisionRef.current
           const local = collectLocalSuite()
+          const localDashboard = local.apps.dashboard
+          const remoteDashboard = remote.apps.dashboard
+          if (localDashboard && remoteDashboard) {
+            localDashboard.value = rebaseLocalSyncChanges(
+              acceptedDashboardSyncRef.current,
+              normalizeSyncState(localDashboard.value),
+              normalizeSyncState(remoteDashboard.value),
+              deviceIdRef.current,
+            )
+            localDashboard.updatedAt = Math.max(localDashboard.updatedAt, remoteDashboard.updatedAt + 1)
+            localDashboard.updatedBy = deviceIdRef.current
+          }
           const next = mergeSuiteStates(remote, local)
           transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
           return { next, collectedRevision }
@@ -327,8 +352,8 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         localStorage.removeItem(DAILY_CODE_KEY)
         session.ready = true
         if (localRevisionRef.current === connectionResult.collectedRevision) {
+          acceptedRevisionRef.current = connectionResult.collectedRevision
           applySuite(connectionResult.next)
-          localEditUntilRef.current = 0
           setStatus('synced')
           setMessage('已同步')
           setLastSyncedAt(Date.now())
@@ -340,8 +365,9 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
 
         session.unsubscribe = onSnapshot(session.document, (snapshot) => {
           if (disposed || !snapshot.exists()) return
-          // A cached/older snapshot must never undo a click that is still waiting to upload.
-          if (Date.now() < localEditUntilRef.current) {
+          // Never accept a snapshot while any local edit is still unacknowledged.
+          // A time-based guard fails on slow mobile connections.
+          if (localRevisionRef.current !== acceptedRevisionRef.current) {
             schedulePush()
             return
           }
@@ -398,7 +424,6 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       }
       saveMeta(metaRef.current)
       localRevisionRef.current += 1
-      localEditUntilRef.current = Date.now() + LOCAL_EDIT_GUARD_MS
       schedulePush()
     }
     window.addEventListener('storage', onStorage)

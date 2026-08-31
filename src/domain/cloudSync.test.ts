@@ -5,6 +5,7 @@ import {
   latestSyncTimestamp,
   mergeSyncStates,
   normalizeSyncState,
+  rebaseLocalSyncChanges,
   reconcileAppStateWithSyncState,
   syncStatesEqual,
 } from './cloudSync'
@@ -105,6 +106,65 @@ describe('canonical cloud sync merge', () => {
     const visible = applySyncStateToAppState(createInitialState(), createSyncStateFromAppState(current))
 
     expect(visible.notDoingItems).toEqual(current.notDoingItems)
+  })
+
+  it('merges edits to different not-doing and stage-label positions from two devices', () => {
+    const base = createSyncStateFromAppState(createInitialState())
+    const leftState = createInitialState()
+    leftState.notDoingItems[0] = '电脑设置'
+    leftState.stageLabels[0] = '电脑阶段'
+    const rightState = createInitialState()
+    rightState.notDoingItems[1] = '手机设置'
+    rightState.stageLabels[1] = '手机阶段'
+    const left = reconcileAppStateWithSyncState(base, leftState, { updatedAt: 10, updatedBy: 'computer' })
+    const right = reconcileAppStateWithSyncState(base, rightState, { updatedAt: 11, updatedBy: 'phone' })
+
+    const visible = applySyncStateToAppState(createInitialState(), mergeSyncStates(left, right))
+
+    expect(visible.notDoingItems.slice(0, 2)).toEqual(['电脑设置', '手机设置'])
+    expect(visible.stageLabels.slice(0, 2)).toEqual(['电脑阶段', '手机阶段'])
+  })
+
+  it('rebases a fresh local edit above a remote timestamp even when the local clock was behind', () => {
+    const baseState = createInitialState()
+    baseState.notDoingItems[0] = '原内容'
+    const base = reconcileAppStateWithSyncState(
+      createSyncStateFromAppState(baseState),
+      baseState,
+      { updatedAt: 100, updatedBy: 'computer' },
+    )
+    const editedState = { ...baseState, notDoingItems: ['电脑刚设置的内容', ...baseState.notDoingItems.slice(1)] }
+    const localWithSlowClock = reconcileAppStateWithSyncState(base, editedState, { updatedAt: 101, updatedBy: 'computer' })
+    const remoteState = { ...baseState, notDoingItems: ['另一设备旧内容', ...baseState.notDoingItems.slice(1)] }
+    const remoteWithFastClock = reconcileAppStateWithSyncState(base, remoteState, { updatedAt: 9_999, updatedBy: 'phone' })
+
+    const rebased = rebaseLocalSyncChanges(base, localWithSlowClock, remoteWithFastClock, 'computer')
+    const visible = applySyncStateToAppState(editedState, mergeSyncStates(remoteWithFastClock, rebased))
+
+    expect(visible.notDoingItems[0]).toBe('电脑刚设置的内容')
+    expect(latestSyncTimestamp(rebased)).toBeGreaterThan(latestSyncTimestamp(remoteWithFastClock))
+  })
+
+  it('does not treat indexed-setting migration on a stale device as a fresh edit', () => {
+    const staleState = createInitialState()
+    staleState.notDoingItems[0] = '旧设备内容'
+    const legacy = createSyncStateFromAppState(staleState)
+    delete legacy.settings['notDoingItem:0']
+    legacy.settings.notDoingItems = { value: staleState.notDoingItems, updatedAt: 100, updatedBy: 'old-phone' }
+
+    const migratedLocal = reconcileAppStateWithSyncState(legacy, staleState, { updatedAt: 300, updatedBy: 'old-phone' })
+    const remote = normalizeSyncState({
+      ...legacy,
+      settings: {
+        ...legacy.settings,
+        'notDoingItem:0': { value: '电脑最新内容', updatedAt: 200, updatedBy: 'computer' },
+      },
+    })
+    const rebased = rebaseLocalSyncChanges(legacy, migratedLocal, remote, 'old-phone')
+    const visible = applySyncStateToAppState(staleState, mergeSyncStates(remote, rebased))
+
+    expect(migratedLocal.settings['notDoingItem:0']).toEqual({ value: '旧设备内容', updatedAt: 100, updatedBy: 'old-phone' })
+    expect(visible.notDoingItems[0]).toBe('电脑最新内容')
   })
 
   it('syncs the current and total progress values', () => {

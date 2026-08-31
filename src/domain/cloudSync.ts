@@ -219,6 +219,17 @@ function setting(value: SyncSettingValue): SyncSetting {
   return { value, ...BASELINE_STAMP }
 }
 
+function indexedLegacySetting(sync: SyncState, key: string): SyncSetting | undefined {
+  const match = /^(notDoingItem|stageLabel):(\d+)$/.exec(key)
+  if (!match) return undefined
+  const sourceKey = match[1] === 'notDoingItem' ? 'notDoingItems' : 'stageLabels'
+  const source = sync.settings[sourceKey]
+  const index = Number(match[2])
+  return source && Array.isArray(source.value) && typeof source.value[index] === 'string'
+    ? { value: source.value[index], updatedAt: source.updatedAt, updatedBy: source.updatedBy }
+    : undefined
+}
+
 export function createSyncStateFromAppState(state: AppState): SyncState {
   const sync = emptySyncState()
   sync.projects = state.projects.map((project, order) => ({ ...project, order, ...BASELINE_STAMP }))
@@ -246,6 +257,7 @@ export function createSyncStateFromAppState(state: AppState): SyncState {
     theme: setting(state.theme),
     stageBoardTitle: setting(state.stageBoardTitle),
     notDoingItems: setting(normalizeNotDoingItems(state.notDoingItems)),
+    ...Object.fromEntries(normalizeNotDoingItems(state.notDoingItems).map((item, index) => [`notDoingItem:${index}`, setting(item)])),
     progressCurrent: setting(normalizeProgressValue(state.progressCurrent, 0)),
     progressTotal: setting(normalizeProgressValue(state.progressTotal, 100, 1)),
     stageLabels: setting(state.stageLabels),
@@ -306,6 +318,75 @@ export function mergeSyncStates(left: SyncState, right: SyncState): SyncState {
   })
 }
 
+/**
+ * Rebases only edits made since the last accepted cloud state above the newest
+ * remote version. This prevents client clock skew from making a fresh local
+ * edit look older, while leaving untouched stale values unable to overwrite
+ * another device.
+ */
+export function rebaseLocalSyncChanges(
+  baseValue: SyncState,
+  localValue: SyncState,
+  remoteValue: SyncState,
+  updatedBy: string,
+): SyncState {
+  const base = normalizeSyncState(baseValue)
+  const local = normalizeSyncState(localValue)
+  const remote = normalizeSyncState(remoteValue)
+  const changeStamp: VersionStamp = {
+    updatedAt: Math.max(
+      Date.now(),
+      latestSyncTimestamp(base) + 1,
+      latestSyncTimestamp(local) + 1,
+      latestSyncTimestamp(remote) + 1,
+    ),
+    updatedBy,
+  }
+
+  const rebaseEntities = <T extends { id: string } & VersionStamp>(baseEntities: T[], localEntities: T[]): T[] => {
+    const baseById = new Map(baseEntities.map((entity) => [entity.id, entity]))
+    return localEntities.map((entity) => {
+      const previous = baseById.get(entity.id)
+      return !previous || canonicalJson(withoutVersion(previous)) !== canonicalJson(withoutVersion(entity))
+        ? { ...entity, ...changeStamp }
+        : entity
+    })
+  }
+  const rebaseTombstones = (baseTombstones: Record<string, VersionStamp>, localTombstones: Record<string, VersionStamp>) =>
+    Object.fromEntries(
+      Object.entries(localTombstones).map(([id, tombstone]) => {
+        const previous = baseTombstones[id]
+        return [id, !previous || compareVersion(tombstone, previous) > 0 ? changeStamp : tombstone]
+      }),
+    )
+
+  const settings = Object.fromEntries(
+    Object.entries(local.settings).map(([key, current]) => {
+      const previous = base.settings[key] ?? indexedLegacySetting(base, key)
+      return [key, !previous || canonicalJson(previous.value) !== canonicalJson(current.value)
+        ? { ...current, ...changeStamp }
+        : current]
+    }),
+  )
+
+  return normalizeSyncState({
+    schemaVersion: 2,
+    projects: rebaseEntities(base.projects, local.projects),
+    checkins: rebaseEntities(base.checkins, local.checkins),
+    randomItems: rebaseEntities(base.randomItems, local.randomItems),
+    randomResults: rebaseEntities(base.randomResults, local.randomResults),
+    stageProjects: rebaseEntities(base.stageProjects, local.stageProjects),
+    settings,
+    tombstones: {
+      projects: rebaseTombstones(base.tombstones.projects, local.tombstones.projects),
+      checkins: rebaseTombstones(base.tombstones.checkins, local.tombstones.checkins),
+      randomItems: rebaseTombstones(base.tombstones.randomItems, local.tombstones.randomItems),
+      randomResults: rebaseTombstones(base.tombstones.randomResults, local.tombstones.randomResults),
+      stageProjects: rebaseTombstones(base.tombstones.stageProjects, local.tombstones.stageProjects),
+    },
+  })
+}
+
 function withoutVersion<T extends VersionStamp>(value: T): Omit<T, keyof VersionStamp> {
   const { updatedAt: _updatedAt, updatedBy: _updatedBy, ...content } = value
   return content
@@ -347,7 +428,7 @@ export function reconcileAppStateWithSyncState(
   const randomResults = reconcileEntities(previous.randomResults, current.randomResults, previous.tombstones.randomResults, changeStamp)
   const stageProjects = reconcileEntities(previous.stageProjects, current.stageProjects, previous.tombstones.stageProjects, changeStamp)
   const settings = Object.fromEntries(Object.entries(current.settings).map(([key, settingValue]) => {
-    const older = previous.settings[key]
+    const older = previous.settings[key] ?? indexedLegacySetting(previous, key)
     return [key, older && canonicalJson(older.value) === canonicalJson(settingValue.value)
       ? older
       : { ...settingValue, ...changeStamp }]
@@ -422,11 +503,18 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     normalizeProgressValue(sync.settings.progressCurrent?.value, current.progressCurrent),
     progressTotal,
   )
-  const stageLabels = normalizeStageLabels(Array.isArray(syncedStageLabels) && syncedStageLabels.length
+  const stageLabelBase = normalizeStageLabels(Array.isArray(syncedStageLabels) && syncedStageLabels.length
     ? syncedStageLabels
     : Array.from({ length: current.stageLabels.length }, (_, index) =>
       settingString(sync, `stageLabel:${index}`, current.stageLabels[index] ?? ''),
     ))
+  const stageLabels = normalizeStageLabels(stageLabelBase.map((label, index) =>
+    settingString(sync, `stageLabel:${index}`, label),
+  ))
+  const notDoingBase = normalizeNotDoingItems(Array.isArray(syncedNotDoingItems) ? syncedNotDoingItems : current.notDoingItems)
+  const notDoingItems = normalizeNotDoingItems(notDoingBase.map((item, index) =>
+    settingString(sync, `notDoingItem:${index}`, item),
+  ))
   const stageProjects = [...sync.stageProjects]
     .sort((a, b) => a.order - b.order || compareText(a.id, b.id))
     .map(({ updatedAt: _updatedAt, updatedBy: _updatedBy, order: _order, ...project }) => ({
@@ -441,7 +529,7 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
     checkins,
     randomCategories,
     dailyRandomResults,
-    notDoingItems: normalizeNotDoingItems(Array.isArray(syncedNotDoingItems) ? syncedNotDoingItems : current.notDoingItems),
+    notDoingItems,
     progressCurrent,
     progressTotal,
     stageProjects,
