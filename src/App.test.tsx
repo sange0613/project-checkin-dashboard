@@ -103,6 +103,7 @@ test.each([
   ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
   ['图片转 PDF', 'https://sange1022.github.io/image-to-pdf-studio/'],
+  ['图片水印', 'https://sange1022.github.io/image-watermark-web/'],
   ['平面图制作', 'https://sange1022.github.io/floor-plan-maker/'],
   ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
   ['间', 'https://sange1022.github.io/random-planar-composition/'],
