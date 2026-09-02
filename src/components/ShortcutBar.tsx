@@ -12,6 +12,7 @@ const secondaryLinks = [
   { label: '图片拼贴', short: '拼', href: 'https://sange1022.github.io/xuwu-image-collage/' },
   { label: '图片转 PDF', short: 'P', href: 'https://sange1022.github.io/image-to-pdf-studio/' },
   { label: '图片水印', short: '水', href: 'https://sange1022.github.io/image-watermark-web/' },
+  { label: '配色工具', short: '色', href: 'https://sange1022.github.io/shise-palette/' },
   { label: '平面图制作', short: '彩', href: 'https://sange1022.github.io/floor-plan-maker/' },
   { label: '构', menuName: '构图工具', short: '构', href: 'https://sange1022.github.io/qf-07-9a6c3e21/' },
   { label: '间', menuName: '随机平面构成', short: '间', href: 'https://sange1022.github.io/random-planar-composition/' },
