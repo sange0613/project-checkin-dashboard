@@ -5,6 +5,32 @@ import { createInitialState } from './domain/types'
 
 beforeEach(() => localStorage.clear())
 
+test('pins hides restores and filters checkin projects', async () => {
+  const initial = createInitialState()
+  initial.projects = [{ id: 'a', name: '甲', archived: false, createdAt: '' }, { id: 'b', name: '乙', archived: false, createdAt: '' }]
+  localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state: initial }))
+  render(<App />)
+  await userEvent.click(screen.getByRole('button', { name: '置顶 乙' }))
+  expect(screen.getAllByTestId('project-name')[0]).toHaveTextContent('乙')
+  await userEvent.click(screen.getByRole('button', { name: '隐藏 乙' }))
+  expect(screen.getAllByTestId('project-row')).toHaveLength(1)
+  await userEvent.click(screen.getByRole('button', { name: '已隐藏' }))
+  await userEvent.click(screen.getByRole('button', { name: '恢复显示 乙' }))
+  await userEvent.click(screen.getByRole('button', { name: '全部' }))
+  expect(screen.getAllByTestId('project-row')).toHaveLength(2)
+  await userEvent.click(screen.getByRole('button', { name: '今天未打卡' }))
+  expect(screen.getAllByTestId('project-row')).toHaveLength(2)
+})
+
+test('remembers section collapse on this device', async () => {
+  const { unmount } = render(<App />)
+  await userEvent.click(screen.getByRole('button', { name: '今日随机' }))
+  expect(screen.getByRole('button', { name: '今日随机' })).toHaveAttribute('aria-expanded', 'false')
+  unmount()
+  render(<App />)
+  expect(screen.getByRole('button', { name: '今日随机' })).toHaveAttribute('aria-expanded', 'false')
+})
+
 test('renders the default editable page title', () => {
   render(<App />)
   expect(screen.getByText('项目进度')).toBeInTheDocument()
@@ -110,9 +136,13 @@ test.each([
   ['间', 'https://sange1022.github.io/random-planar-composition/'],
   ['海', 'https://sange1022.github.io/contour-text-studio/?v=5787e7a'],
   ['词', 'https://sange1022.github.io/english-vocabulary-study/'],
-])('opens the %s shortcut safely in a new tab', (name, href) => {
+])('opens the %s shortcut safely in a new tab', async (name, href) => {
   render(<App />)
-  const link = screen.getByRole('link', { name })
+  let link = screen.queryByRole('link', { name })
+  if (!link) {
+    await userEvent.click(screen.getByRole('button', { name: '更多工具' }))
+    link = screen.getAllByRole('menuitem').find(item => item.getAttribute('href') === href) as HTMLAnchorElement
+  }
   expect(link).toHaveAttribute('href', href)
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')

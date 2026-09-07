@@ -6,21 +6,23 @@ type Props = {
   categories: RandomCategory[]
   results: Partial<Record<RandomCategory['id'], RandomResult>>
   onResult: (categoryId: RandomCategory['id'], result: RandomResult) => void
+  candidates?: RandomCategory[]
 }
 
-export function DailyRandomPanel({ categories, results, onResult }: Props) {
+export function DailyRandomPanel({ categories, results, onResult, candidates = categories }: Props) {
   const [rolling, setRolling] = useState<Partial<Record<RandomCategory['id'], string>>>({})
   const timers = useRef<number[]>([])
   useEffect(() => () => timers.current.forEach(window.clearInterval), [])
 
   const draw = (category: RandomCategory) => {
     if (results[category.id] || rolling[category.id]) return
-    const finalItem = pickRandomItem(category.items)
+    const finalItem = pickRandomItem(candidates.find(item => item.id === category.id)?.items ?? category.items)
+    setRolling(current => ({ ...current, [category.id]: finalItem.name }))
     const interval = window.setInterval(() => {
       setRolling((current) => ({ ...current, [category.id]: pickRandomItem(category.items).name }))
     }, 90)
     timers.current.push(interval)
-    window.setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       window.clearInterval(interval)
       setRolling((current) => {
         const next = { ...current }
@@ -29,6 +31,7 @@ export function DailyRandomPanel({ categories, results, onResult }: Props) {
       })
       onResult(category.id, { itemId: finalItem.id, name: finalItem.name })
     }, 2000)
+    timers.current.push(timeout)
   }
 
   return (

@@ -13,6 +13,13 @@ import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
 import { SuiteSyncPanel } from './components/SuiteSyncPanel'
 import { ShortcutBar } from './components/ShortcutBar'
 import { ShortcutSettings, readShortcuts } from './components/ShortcutSettings'
+import { CollapsibleSection } from './components/CollapsibleSection'
+import { RecoveryPanel } from './components/RecoveryPanel'
+import { InstallPanel } from './components/InstallPanel'
+import { saveRecovery } from './storage/recovery'
+import { readConflicts } from './storage/syncConflicts'
+import { eligibleRandomItems, readStageEvents, withStageEvent } from './domain/enhancements'
+import { addStageDays, hydrateStageProject } from './domain/projectStages'
 import type { AppState, Project, StageProjectDraft, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
 import { exportState, importState } from './storage/dataTransfer'
@@ -95,6 +102,19 @@ export default function App() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [projectFilter, setProjectFilter] = useState<'all' | 'unchecked' | 'archived'>('all')
+  const [stageFilterRequest, setStageFilterRequest] = useState<{ filter: 'active' | 'dueSoon'; at: number }>()
+  const [clock, setClock] = useState(() => Date.now())
+  const [online, setOnline] = useState(navigator.onLine)
+  const [conflictCount, setConflictCount] = useState(() => readConflicts().length)
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 30_000)
+    const connection = () => setOnline(navigator.onLine)
+    const conflicts = () => setConflictCount(readConflicts().length)
+    window.addEventListener('online', connection); window.addEventListener('offline', connection)
+    window.addEventListener('recovery-updated', conflicts)
+    return () => { clearInterval(timer); window.removeEventListener('online', connection); window.removeEventListener('offline', connection); window.removeEventListener('recovery-updated', conflicts) }
+  }, [])
   const [transferMessage, setTransferMessage] = useState('')
   const [undo, setUndo] = useState<{ before: AppState; after: AppState } | null>(null)
   useEffect(() => { if (!undo) return; const timer = setTimeout(() => setUndo(null), 12000); return () => clearTimeout(timer) }, [undo])
@@ -102,7 +122,8 @@ export default function App() {
   const [loadedToolIds, setLoadedToolIds] = useState<IntegratedToolId[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
   const suiteSync = useSuiteSync(state, setState)
-  const today = useMemo(() => new Date(), [])
+  const currentDay = toDateKey(new Date(clock))
+  const today = useMemo(() => new Date(`${currentDay}T12:00:00`), [currentDay])
   const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
   const actualTheme = state.theme === 'system' ? (systemDark ? 'dark' : 'light') : state.theme
   const anchor = new Date(state.anchorDate)
@@ -120,6 +141,7 @@ export default function App() {
           ? { ...current, shortcutConfig: readShortcuts().map((link) => JSON.stringify(link)) }
           : current
         setUndo({ before, after: next })
+        saveRecovery(current, '修改前')
       }
       return next
     })
@@ -127,6 +149,7 @@ export default function App() {
   const undoLastChange = () => {
     if (!undo) return
     setState((current) => {
+      saveRecovery(current, '撤销前')
       const next = { ...current }
       for (const key of Object.keys(undo.after) as (keyof AppState)[]) {
         if (JSON.stringify(undo.before[key]) !== JSON.stringify(undo.after[key]) && JSON.stringify(current[key]) === JSON.stringify(undo.after[key])) {
@@ -138,8 +161,25 @@ export default function App() {
     setUndo(null)
   }
   const visibleProjects = state.projects.filter((project) =>
-    !project.archived && project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
-  )
+    (projectFilter === 'archived' ? project.archived : !project.archived) &&
+    (projectFilter !== 'unchecked' || !(state.checkins[project.id] ?? []).includes(currentDay)) &&
+    project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  ).sort((a, b) => Number(Boolean(state.preferences?.[`pin:${b.id}`])) - Number(Boolean(state.preferences?.[`pin:${a.id}`])))
+  const setPreference = (key: string, value: string | number | boolean) => update(current => ({ ...current, preferences: { ...current.preferences, [key]: value } }))
+  const showCheckins = (filter: 'all' | 'unchecked') => {
+    setProjectFilter(filter); setQuery('')
+    update(current => ({ ...current, view: 'day', anchorDate: today.toISOString() }))
+    document.getElementById('checkin-projects')?.scrollIntoView?.({ behavior: 'smooth' })
+  }
+  const showStages = (filter: 'active' | 'dueSoon') => {
+    window.dispatchEvent(new CustomEvent('open-section', { detail: 'stages' }))
+    setStageFilterRequest({ filter, at: Date.now() })
+    requestAnimationFrame(() => document.getElementById('section-stages')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }))
+  }
+  const stages = state.stageProjects.map(hydrateStageProject)
+  const pendingCount = stages.filter(p => !p.taskCompleted && p.taskStart <= currentDay && p.taskEnd >= currentDay).length
+  const dueCount = stages.filter(p => !p.taskCompleted && p.taskEnd >= currentDay && p.taskEnd <= addStageDays(currentDay, 7)).length
+  const todayCount = state.projects.filter(p => (state.checkins[p.id] ?? []).includes(currentDay)).length
 
   const setView = (view: ViewMode) => update((current) => ({ ...current, view }))
   const moveMonth = (delta: number) => {
@@ -202,10 +242,11 @@ export default function App() {
     : ''
   const syncSummary = desktopLocalOnly
     ? '仅保存在当前电脑'
+    : !online ? '离线 · 修改已保存在本机，联网后同步'
     : suiteSync.status === 'synced'
     ? `数据已同步${lastSyncLabel ? ` · ${lastSyncLabel}` : ''}`
     : suiteSync.status === 'syncing'
-      ? '正在同步'
+      ? '有修改待上传 · 正在同步'
       : suiteSync.status === 'connecting'
         ? '正在连接'
         : suiteSync.message
@@ -245,14 +286,16 @@ export default function App() {
   }))
   const updateStageProject = (id: string, draft: StageProjectDraft) => update((current) => ({
     ...current,
+    preferences: current.stageProjects.find(p => p.id === id) ? withStageEvent(current, current.stageProjects.find(p => p.id === id)!, { ...current.stageProjects.find(p => p.id === id)!, ...draft }) : current.preferences ?? {},
     stageProjects: current.stageProjects.map((project) => project.id === id
       ? { ...project, ...draft, modifiedAt: new Date().toISOString() }
       : project),
   }))
-  const setStageProjectStage = (id: string, stageIndex: number) => update((current) => ({
+  const setStageProjectStage = (id: string, stageIndex: number) => update((current) => current.stageProjects.find(p => p.id === id)?.stageIndex === stageIndex ? current : ({
     ...current,
+    preferences: current.stageProjects.find(p => p.id === id) ? withStageEvent(current, current.stageProjects.find(p => p.id === id)!, { ...current.stageProjects.find(p => p.id === id)!, stageIndex, taskCompleted: false }) : current.preferences ?? {},
     stageProjects: current.stageProjects.map((project) => project.id === id
-      ? { ...project, stageIndex, modifiedAt: new Date().toISOString() }
+      ? { ...project, stageIndex, taskCompleted: false, modifiedAt: new Date().toISOString() }
       : project),
   }))
   const deleteStageProject = (id: string) => update((current) => ({ ...current, stageProjects: current.stageProjects.filter((project) => project.id !== id) }))
@@ -280,6 +323,7 @@ export default function App() {
     try {
       const nextState = importState(await file.text())
       if (window.confirm('导入会覆盖当前浏览器中的全部项目和打卡数据，继续吗？')) {
+        saveRecovery(state, '导入前')
         setState(nextState)
         setTransferMessage('数据已导入')
       }
@@ -319,8 +363,16 @@ export default function App() {
       ) : (
         <>
           <GoalProgress current={state.progressCurrent} total={state.progressTotal} />
-          <DailyRandomPanel categories={state.randomCategories} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
-          <NotDoingList items={state.notDoingItems} onChange={updateNotDoingItem} />
+          <CollapsibleSection id="random" title="今日随机">
+            <DailyRandomPanel categories={state.randomCategories} candidates={state.randomCategories.map(category => ({ ...category, items: eligibleRandomItems(category, state.dailyRandomResults, todayKey, Number(state.preferences?.randomAvoidDays ?? 7)) }))} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
+          </CollapsibleSection>
+          <nav className="today-summary" aria-label="今日摘要">
+            <button onClick={() => showCheckins('all')}>今日打卡 {todayCount}</button>
+            <button onClick={() => showCheckins('unchecked')}>未打卡 {state.projects.filter(p => !p.archived && !(state.checkins[p.id] ?? []).includes(todayKey)).length}</button>
+            <button onClick={() => showStages('active')}>待推进 {pendingCount}</button>
+            <button onClick={() => showStages('dueSoon')}>7天内到期 {dueCount}</button>
+          </nav>
+          <CollapsibleSection id="not-doing" title="不为清单"><NotDoingList items={state.notDoingItems} onChange={updateNotDoingItem} /></CollapsibleSection>
 
           <section className="workspace">
         {searchOpen && (
@@ -334,7 +386,7 @@ export default function App() {
           <div>
             <p className="eyebrow">{state.view === 'day' ? 'MONTHLY CHECK-IN' : state.view === 'week' ? 'LAST 12 WEEKS' : 'LAST 12 MONTHS'}</p>
             <h1>{state.view === 'day' ? monthTitle : state.view === 'week' ? '最近 12 周' : '最近 12 个月'}</h1>
-            <p className="period-meta" role="status">{syncSummary}</p>
+            <p className="period-meta" role="status"><span className="sync-dot" data-pending={suiteSync.status === 'syncing' || !online} />{syncSummary}{conflictCount > 0 && <button onClick={() => { const panel = document.getElementById('recovery-panel') as HTMLDetailsElement; if (panel) { panel.open = true; panel.scrollIntoView?.({ behavior: 'smooth' }) } }}> · {conflictCount} 项冲突待确认</button>}</p>
           </div>
           {state.view === 'day' && (
             <div className="month-navigation">
@@ -348,8 +400,11 @@ export default function App() {
           )}
         </div>
 
-        <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} />
+        <div id="checkin-projects" className="project-filter" aria-label="打卡筛选">{([['all', '全部'], ['unchecked', '今天未打卡'], ['archived', '已隐藏']] as const).map(([value, label]) => <button key={value} aria-pressed={projectFilter === value} onClick={() => setProjectFilter(value)}>{label}</button>)}</div>
+        <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} pinnedIds={state.projects.filter(p => state.preferences?.[`pin:${p.id}`]).map(p => p.id)} onPin={id => setPreference(`pin:${id}`, !state.preferences?.[`pin:${id}`])} onArchive={id => update(current => ({ ...current, projects: current.projects.map(p => p.id === id ? { ...p, archived: !p.archived } : p) }))} onReorder={(from, to) => update(current => { const projects = [...current.projects]; const item = projects.find(p => p.id === from); if (!item) return current; const rest = projects.filter(p => p.id !== from); rest.splice(rest.findIndex(p => p.id === to), 0, item); return { ...current, projects: rest } })} />
+        <CollapsibleSection id="stages" title="阶段与排期">
         <ProjectStageBoard
+          filterRequest={stageFilterRequest}
           title={state.stageBoardTitle}
           labels={state.stageLabels}
           projects={state.stageProjects}
@@ -360,12 +415,13 @@ export default function App() {
           onDelete={deleteStageProject}
           onStageChange={setStageProjectStage}
         />
+        </CollapsibleSection>
         {!visibleProjects.length && (
           <div className="empty-state">
             <div className="empty-mark">日</div>
-            <h2>{query ? '没有匹配的项目' : '从第一个项目开始'}</h2>
-            <p>{query ? '换一个关键词试试。' : '建立项目，然后每天轻点一下。'}</p>
-            {!query && <button className="primary-button" onClick={() => setDialogOpen(true)}><Plus size={16} />添加项目</button>}
+            <h2>{state.projects.length ? '当前筛选下没有项目' : '从第一个项目开始'}</h2>
+            <p>{state.projects.length ? '可切换“全部”或“已隐藏”查看。' : '建立项目，然后每天轻点一下。'}</p>
+            {!state.projects.length && <button className="primary-button" onClick={() => setDialogOpen(true)}><Plus size={16} />添加项目</button>}
           </div>
         )}
 
@@ -388,12 +444,20 @@ export default function App() {
           </div>
         </footer>
         <div className="bottom-panels">
+          <RecoveryPanel state={state} onRestore={next => update(() => next)} />
+          {!desktopLocalOnly && <InstallPanel />}
+          <details className="enhancement-settings"><summary>随机规则与阶段历史</summary>
+            <label>避免重复 <select aria-label="随机避免重复" value={Number(state.preferences?.randomAvoidDays ?? 7)} onChange={e => setPreference('randomAvoidDays', Number(e.target.value))}><option value={0}>仅当天一次</option><option value={7}>最近七天尽量不重复</option></select></label>
+            <p>候选全部用过时重新随机；每日每类仍只可抽取一次。</p>
+            <h3>阶段历史</h3><p>从本次更新开始记录进入阶段、任务完结及重新开启的时间，记录随同步码同步。</p>
+            {readStageEvents(state).map((event, index) => <div className="recovery-row" key={`${event.at}-${index}`}>{event.name} · {event.label} · {event.action} · {new Date(event.at).toLocaleString('zh-CN')}</div>)}
+          </details>
           <ShortcutSettings links={readShortcuts(state.shortcutConfig)} onChange={(links) => update((current) => ({ ...current, shortcutConfig: links.map((link) => JSON.stringify(link)) }))} />
           <GoalProgressSettings current={state.progressCurrent} total={state.progressTotal} onCurrentChange={updateProgressCurrent} onTotalChange={updateProgressTotal} />
           <RandomPromptManager categories={state.randomCategories} onAdd={addRandomItem} onRename={renameRandomItem} onDelete={deleteRandomItem} />
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
         </div>
-        <CheckinActivityHeatmap checkins={state.checkins} today={today} />
+        <CollapsibleSection id="activity" title="打卡活动"><CheckinActivityHeatmap checkins={state.checkins} today={today} /></CollapsibleSection>
         {!desktopLocalOnly ? <SuiteSyncPanel
           code={suiteSync.codeInput}
           connected={Boolean(suiteSync.connectedCode)}

@@ -9,6 +9,9 @@ import {
   reconcileAppStateWithSyncState,
 } from '../domain/cloudSync'
 import type { AppState, SyncState } from '../domain/types'
+import { saveRecovery } from '../storage/recovery'
+import { recordConflicts } from '../storage/syncConflicts'
+const ACCEPTED_SYNC_KEY = 'project-suite-dashboard-accepted-v1'
 import {
   SUITE_APP_IDS,
   cleanSyncCode,
@@ -135,7 +138,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const stateRef = useRef(state)
   const metaRef = useRef<SyncMeta>(initialMeta)
   const dashboardSyncRef = useRef<SyncState>(initialDashboardSync)
-  const acceptedDashboardSyncRef = useRef<SyncState>(initialDashboardSync)
+  const [initialAcceptedSync] = useState(() => {
+    const saved = parseJson(localStorage.getItem(ACCEPTED_SYNC_KEY))
+    return saved ? normalizeSyncState(saved) : initialDashboardSync
+  })
+  const acceptedDashboardSyncRef = useRef<SyncState>(initialAcceptedSync)
   const sessionRef = useRef<SyncSession | null>(null)
   const deviceIdRef = useRef(deviceId)
   const localRevisionRef = useRef(0)
@@ -158,9 +165,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         dashboardSyncRef.current = syncedDashboard
         acceptedDashboardSyncRef.current = syncedDashboard
+        localStorage.setItem(ACCEPTED_SYNC_KEY, JSON.stringify(syncedDashboard))
         saveDashboardSync(syncedDashboard)
         setState((current) => {
           const next = applySyncStateToAppState(current, syncedDashboard)
+          if (fingerprint(dashboardViewValue(current)) !== fingerprint(dashboardViewValue(next))) saveRecovery(current, '同步前')
           return fingerprint(dashboardViewValue(current)) === fingerprint(dashboardViewValue(next)) ? current : next
         })
       } else {
@@ -235,6 +244,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           const localDashboard = local.apps.dashboard
           const remoteDashboard = remote.apps.dashboard
           if (localDashboard && remoteDashboard) {
+            recordConflicts(acceptedDashboardSyncRef.current, normalizeSyncState(localDashboard.value), normalizeSyncState(remoteDashboard.value))
             localDashboard.value = rebaseLocalSyncChanges(
               acceptedDashboardSyncRef.current,
               normalizeSyncState(localDashboard.value),
@@ -335,6 +345,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           const localDashboard = local.apps.dashboard
           const remoteDashboard = remote.apps.dashboard
           if (localDashboard && remoteDashboard) {
+            recordConflicts(acceptedDashboardSyncRef.current, normalizeSyncState(localDashboard.value), normalizeSyncState(remoteDashboard.value))
             localDashboard.value = rebaseLocalSyncChanges(
               acceptedDashboardSyncRef.current,
               normalizeSyncState(localDashboard.value),

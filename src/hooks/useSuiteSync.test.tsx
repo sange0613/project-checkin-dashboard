@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { vi } from 'vitest'
 import { createInitialState, type AppState } from '../domain/types'
 import { useSuiteSync } from './useSuiteSync'
+import { createSyncStateFromAppState } from '../domain/cloudSync'
 
 const firestoreMock = vi.hoisted(() => ({
   runTransaction: vi.fn(),
@@ -33,6 +34,30 @@ vi.mock('firebase/firestore', () => {
 beforeEach(() => {
   localStorage.clear()
   firestoreMock.runTransaction.mockReset()
+})
+
+test('preserves pending edits after a reload using the last acknowledged checkpoint', async () => {
+  const base = createInitialState()
+  const remote = createSyncStateFromAppState({ ...base, title: '另一设备的新标题' })
+  remote.settings.title.updatedAt = Date.now() + 10000
+  remote.settings.title.updatedBy = 'remote'
+  localStorage.setItem('project-suite-dashboard-accepted-v1', JSON.stringify(createSyncStateFromAppState(base)))
+  localStorage.setItem('project-suite-sync-code-v1', 'SYNCFIXTEST12')
+  firestoreMock.runTransaction.mockImplementation(async (_db: unknown, callback: (transaction: {
+    get: () => Promise<unknown>; set: () => void
+  }) => Promise<unknown>) => callback({
+    get: async () => ({ exists: () => true, data: () => ({ suite: { version: 1, apps: { dashboard: { value: remote, updatedAt: Date.now() + 10000, updatedBy: 'remote' } } } }) }),
+    set: () => {},
+  }))
+  const { result, unmount } = renderHook(() => {
+    const [state, setState] = useState({ ...base, title: '离线修改尚未上传' })
+    const sync = useSuiteSync(state, setState)
+    return { state, sync }
+  })
+  await waitFor(() => expect(result.current.sync.status).toBe('synced'))
+  expect(result.current.state.title).toBe('离线修改尚未上传')
+  expect(JSON.parse(localStorage.getItem('project-sync-conflicts-v1') ?? '[]')).toHaveLength(1)
+  unmount()
 })
 
 test.each([undefined, ['{"label":"测试","short":"测","href":"https://example.com"}']])(

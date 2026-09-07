@@ -59,6 +59,7 @@ export type SyncState = {
 }
 
 export type AppState = {
+  preferences?: Record<string, SyncSettingValue>
   shortcutConfig?: string[]
   title: string
   view: ViewMode

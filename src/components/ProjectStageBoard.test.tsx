@@ -35,7 +35,7 @@ test('shows the migrated portfolio summary, gantt and project stage list', () =>
   expect(screen.getByRole('region', { name: '项目排期' })).toBeVisible()
   const projectList = screen.getByRole('generic', { name: '阶段项目列表' })
   expect(within(projectList).getByText('住宅设计')).toBeVisible()
-  expect(within(projectList).getByText('二次方案')).toBeVisible()
+  expect(within(projectList).getAllByText('二次方案').find(element => element.tagName === 'SPAN')).toBeVisible()
   expect(within(projectList).getByText('65%')).toBeVisible()
 })
 

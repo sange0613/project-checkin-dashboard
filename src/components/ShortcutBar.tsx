@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 type IntegratedToolId = 'daily' | 'checklist' | 'wuwu'
 
-export type Shortcut = { label: string; short: string; href: string; icon?: string; menuName?: string }
+export type Shortcut = { label: string; short: string; href: string; icon?: string; menuName?: string; hidden?: boolean; pinned?: boolean }
 export const defaultShortcuts: Shortcut[] = [
   { label: '英语抄写', short: '抄', href: 'https://sange1022.github.io/english-copywork-trainer/', icon: 'book' },
   { label: 'Learn Buffett', short: '巴', href: 'https://learnbuffett.com' },
@@ -37,7 +37,7 @@ export function ShortcutBar({ onOpenIntegratedTool, links: secondaryLinks = defa
       <a className="icon-button shortcut-character vocabulary-shortcut" href="https://sange1022.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="英语词汇学习">词</a>
 
       <span className="desktop-shortcuts">
-        {secondaryLinks.map((link) => (
+        {secondaryLinks.filter((link, index) => !link.hidden && (link.pinned ?? index < 4)).map((link) => (
           <a
             key={link.href}
             className="icon-button shortcut-character"
@@ -67,7 +67,7 @@ export function ShortcutBar({ onOpenIntegratedTool, links: secondaryLinks = defa
         </button>
         {moreOpen ? (
           <div className="shortcut-popover" role="menu" aria-label="更多工具">
-            {secondaryLinks.map((link) => (
+            {secondaryLinks.filter(link => !link.hidden).map((link) => (
               <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" role="menuitem" onClick={() => setMoreOpen(false)}>
                 <span>{link.short}</span>{'menuName' in link ? link.menuName : link.label}
               </a>

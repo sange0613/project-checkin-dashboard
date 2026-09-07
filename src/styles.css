@@ -34,7 +34,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .view-switcher button.active { color: #1f1f1d; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.1); }
 .top-actions { display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: 6px; min-width: 0; }
 .desktop-shortcuts { display: contents; }
-.shortcut-more-wrap { position: relative; display: none; }
+.shortcut-more-wrap { position: relative; display: inline-flex; }
 .shortcut-popover { position: absolute; top: calc(100% + 9px); right: 0; z-index: 30; width: 218px; padding: 7px; border: 1px solid #dfdfd9; border-radius: 12px; background: var(--theme-surface); box-shadow: 0 16px 42px rgba(25,25,22,.16); }
 .shortcut-popover a { min-height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: inherit; text-decoration: none; font-size: 12px; white-space: nowrap; }
 .shortcut-popover a:hover { background: #f2f2ef; }
@@ -95,12 +95,46 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .shortcut-settings { padding: 16px 0; }
 .shortcut-settings summary { cursor: pointer; font-size: 13px; }
 .shortcut-settings p, .shortcut-settings [role="status"] { color: #888; font-size: 12px; }
-.shortcut-setting-row { display: grid; grid-template-columns: 40px minmax(70px, 1fr) minmax(120px, 3fr) auto auto auto; gap: 6px; margin-top: 8px; }
+.shortcut-setting-row { display: grid; grid-template-columns: 40px minmax(70px, 1fr) minmax(120px, 3fr) repeat(5, auto); gap: 6px; margin-top: 8px; }
 .shortcut-setting-row input { width: 100%; min-width: 0; padding: 8px; color: inherit; background: var(--theme-surface); border: 1px solid #8885; border-radius: 6px; font: inherit; font-size: 12px; }
 .shortcut-setting-row button { color: inherit; background: transparent; border: 1px solid #8885; border-radius: 6px; cursor: pointer; }
 .shortcut-setting-row button:disabled { opacity: .3; cursor: default; }
 .undo-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 18px; padding: 12px 18px; border: 1px solid #8885; border-radius: 12px; background: var(--theme-surface); color: inherit; box-shadow: 0 5px 25px #0002; font-size: 13px; white-space: nowrap; }
 .undo-toast button { background: transparent; border: 0; color: #4285ef; cursor: pointer; padding: 6px; }
+.collapsible-section { margin: 14px 0; scroll-margin-top: 18px; }
+.section-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border: 0; background: transparent; color: #888; font: inherit; font-size: 12px; cursor: pointer; }
+.collapsible-section [hidden] { display: none; }
+.today-summary, .project-filter { display: flex; flex-wrap: wrap; gap: 10px 22px; padding: 10px 0; }
+.today-summary button, .project-filter button, .period-meta button { padding: 4px 0; background: transparent; border: 0; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.project-filter { color: #888; }
+.project-filter button[aria-pressed="true"], .project-actions button[aria-pressed="true"], .shortcut-setting-row button[aria-pressed="true"] { color: #508fe5; }
+.sync-dot { display: inline-block; width: 5px; height: 5px; margin-right: 7px; background: #999; border-radius: 50%; }
+.sync-dot[data-pending="true"] { background: #508fe5; }
+.recovery-panel, .enhancement-settings { padding: 16px 0; font-size: 13px; }
+.recovery-panel summary, .enhancement-settings summary { cursor: pointer; }
+.recovery-panel p, .enhancement-settings p { color: #888; font-size: 12px; line-height: 1.8; }
+.recovery-panel button, .enhancement-settings button, .enhancement-settings select { border: 1px solid #8884; color: inherit; background: var(--theme-surface); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+.recovery-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid #8882; font-size: 12px; }
+.conflict-item { padding: 14px 0; border-bottom: 1px solid #8883; }
+.conflict-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.conflict-choices pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto; font-size: 11px; }
+.grid-day .progress-grid { grid-template-columns: 200px repeat(var(--time-columns), minmax(27px, 1fr)) 196px; }
+.grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 160px repeat(12, minmax(42px, 1fr)) 196px; }
+:focus-visible { outline: 2px solid #508fe5; outline-offset: 3px; }
+@media (pointer: coarse) {
+  input, textarea, select { font-size: 16px !important; }
+  button, a { touch-action: manipulation; }
+  .project-actions button { width: 36px; height: 44px; }
+  .grid-day .progress-grid { grid-template-columns: 175px repeat(var(--time-columns), minmax(32px, 1fr)) 225px; }
+  .grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 175px repeat(12, minmax(42px, 1fr)) 225px; }
+  .checkin-cell { min-height: 36px; }
+  .today-summary button, .project-filter button, .section-toggle, .shortcut-setting-row button { min-height: 44px; }
+  .stage-portfolio-rail { display: none; }
+  .stage-touch-select { display: block !important; min-height: 44px; max-width: 100%; border: 1px solid #8884; border-radius: 6px; background: var(--theme-surface); color: inherit; }
+  .top-actions { flex-wrap: nowrap; }
+}
+.stage-touch-select { display: none; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media (max-width: 600px) { .shortcut-setting-row { grid-template-columns: 40px 1fr auto auto auto; } .shortcut-setting-row input:nth-child(3) { grid-column: 1 / -1; grid-row: 2; } }
 .grid-scroll { overflow: auto; max-height: 65vh; overscroll-behavior: contain; padding-bottom: 8px; }
 .progress-grid { --time-columns: 30; min-width: max-content; display: grid; grid-template-columns: 200px repeat(var(--time-columns), minmax(27px, 1fr)) 142px; column-gap: 7px; align-items: center; }
@@ -662,4 +696,27 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
   [data-theme="dark"] .checkin-cell.hover-row:not(.checked),
   [data-theme="dark"] .checkin-cell.hover-column:not(.checked) { background: #4a4a45; }
   [data-theme="dark"] .checkin-cell.checked.hover-current { background: #eeeeea; }
+}
+
+/* Keep action targets wide enough after the legacy responsive rules. */
+.grid-header.menu-spacer { z-index: 8; }
+.app-shell > .collapsible-section { margin: 0 24px; }
+.app-shell > .today-summary { margin: 0 24px; padding: 10px 0; }
+.app-shell > .collapsible-section .section-toggle { min-height: 32px; }
+.app-shell > .collapsible-section .daily-random button { min-height: 70px; }
+#section-not-doing .not-doing-list { grid-template-columns: repeat(6, minmax(100px, 1fr)); }
+#section-not-doing .not-doing-list > strong { display: none; }
+.grid-day .progress-grid { grid-template-columns: 200px repeat(var(--time-columns), minmax(27px, 1fr)) 196px; }
+.grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 160px repeat(12, minmax(42px, 1fr)) 196px; }
+.stage-project-row[data-due="true"] { background: #508fe50a; }
+.stage-project-row time small { display: block; margin-top: 4px; color: #508fe5; }
+@media (pointer: coarse) {
+  .project-actions button { width: 36px; height: 44px; }
+  .grid-day .progress-grid { grid-template-columns: 175px repeat(var(--time-columns), minmax(32px, 1fr)) 225px; }
+  .grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 175px repeat(12, minmax(42px, 1fr)) 225px; }
+}
+@media (max-width: 600px) {
+  .shortcut-setting-row { grid-template-columns: 38px minmax(50px, 1fr) repeat(3, auto); }
+  .shortcut-setting-row input:nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
+  .conflict-choices { grid-template-columns: 1fr; }
 }

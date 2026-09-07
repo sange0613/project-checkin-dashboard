@@ -13,6 +13,7 @@ import { DEFAULT_STAGE_LABELS, type StageProject, type StageProjectDraft } from 
 import { EditableText } from './EditableText'
 
 type Props = {
+  filterRequest?: { filter: 'active' | 'dueSoon'; at: number }
   title: string
   labels: string[]
   projects: StageProject[]
@@ -110,6 +111,8 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
 
 function StageRail({ project, labels, onChange }: { project: StageProject; labels: string[]; onChange: (stageIndex: number) => void }) {
   return (
+    <>
+    <select className="stage-touch-select" aria-label={`${project.name}触控选择阶段`} value={project.stageIndex} onClick={e => e.stopPropagation()} onChange={e => onChange(Number(e.target.value))}>{labels.map((label, index) => <option key={index} value={index}>{label}</option>)}</select>
     <div className="stage-portfolio-rail" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }} data-completed={project.taskCompleted || undefined} aria-label={`${project.name} 当前阶段：${labels[project.stageIndex]}${project.taskCompleted ? '，当前任务已完结' : ''}`} onPointerDown={(event) => event.stopPropagation()}>
       <span />
       {labels.map((label, index) => (
@@ -125,6 +128,7 @@ function StageRail({ project, labels, onChange }: { project: StageProject; label
         </button>
       ))}
     </div>
+    </>
   )
 }
 
@@ -176,7 +180,7 @@ function StageNameEditor({ labels, onClose, onSave }: { labels: string[]; onClos
   )
 }
 
-export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLabelsChange, onCreate, onUpdate, onDelete, onStageChange }: Props) {
+export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLabelsChange, onCreate, onUpdate, onDelete, onStageChange, filterRequest }: Props) {
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const [filter, setFilter] = useState<Filter>('active')
@@ -184,6 +188,7 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [stageEditorOpen, setStageEditorOpen] = useState(false)
+  useEffect(() => { if (filterRequest) { setFilter(filterRequest.filter); setQuery(''); setSort('taskEnd'); setSortDirection('asc') } }, [filterRequest])
   const projectListRef = useRef<HTMLDivElement>(null)
   const hydratedProjects = useMemo(() => projects.map(hydrateStageProject), [projects])
   const today = toStageDate(new Date())
@@ -257,11 +262,11 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
         {visibleProjects.map((project) => {
           const percent = stagePercent(project.stageIndex)
           return (
-            <article className="stage-project-row" key={project.id} onClick={() => setEditingId(project.id)}>
+            <article className="stage-project-row" data-due={!project.taskCompleted && project.taskEnd >= today && project.taskEnd <= weekEnd || undefined} key={project.id} onClick={() => setEditingId(project.id)}>
               <div className="stage-project-name"><strong>{project.name}</strong><span>{[project.client, project.location].filter(Boolean).join(' / ') || '未填写客户与地点'}</span></div>
               <div className="stage-design-period"><span>{shortDate(project.designStart)}</span><i /><span>{shortDate(project.designEnd)}</span></div>
               <div className="stage-current-stage"><i>{project.stageIndex + 1}</i><span>{labels[project.stageIndex]}</span></div>
-              <time>{shortDate(project.taskStart)} — {shortDate(project.taskEnd)}</time>
+              <time>{shortDate(project.taskStart)} — {shortDate(project.taskEnd)}{isPendingProject(project, today) ? <small>今天待推进</small> : null}</time>
               <StageRail project={project} labels={labels} onChange={(index) => onStageChange(project.id, index)} />
               <strong className="stage-percent">{percent}%</strong>
               <button type="button" className="stage-edit-button" aria-label={`编辑阶段项目 ${project.name}`} onClick={(event) => { event.stopPropagation(); setEditingId(project.id) }}><Pencil size={14} /></button>

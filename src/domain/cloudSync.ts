@@ -253,6 +253,7 @@ export function createSyncStateFromAppState(state: AppState): SyncState {
   )
   sync.stageProjects = state.stageProjects.map((project, order) => ({ ...project, order, ...BASELINE_STAMP }))
   sync.settings = {
+    ...Object.fromEntries(Object.entries(state.preferences ?? {}).map(([key, value]) => [`preference:${key}`, setting(value)])),
     ...(state.shortcutConfig ? { shortcutConfig: setting(state.shortcutConfig) } : {}),
     title: setting(state.title),
     theme: setting(state.theme),
@@ -525,6 +526,7 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
 
   return {
     ...current,
+    preferences: Object.fromEntries(Object.entries(sync.settings).filter(([key]) => key.startsWith('preference:')).map(([key, entry]) => [key.slice(11), entry.value])),
     title: settingString(sync, 'title', current.title),
     ...(Array.isArray(sync.settings.shortcutConfig?.value)
       ? { shortcutConfig: sync.settings.shortcutConfig.value }

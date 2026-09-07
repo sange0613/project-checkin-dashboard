@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Trash2, Pin, EyeOff, Eye } from 'lucide-react'
 import { useState } from 'react'
 import { getIntensity, getPeriodRatio } from '../domain/aggregation'
 import { getMonthDays, getMonthPeriods, getWeekPeriods, toDateKey, type Period } from '../domain/dateRanges'
@@ -15,6 +15,10 @@ type Props = {
   onRename: (projectId: string, name: string) => void
   onMove: (projectId: string, direction: -1 | 1) => void
   onDelete: (projectId: string) => void
+  pinnedIds?: string[]
+  onPin?: (id: string) => void
+  onArchive?: (id: string) => void
+  onReorder?: (from: string, to: string) => void
 }
 
 const weekday = ['日', '一', '二', '三', '四', '五', '六']
@@ -25,7 +29,7 @@ function AggregateCell({ period, checked }: { period: Period; checked: Set<strin
   return <div className="aggregate-cell" data-intensity={intensity} title={`${Math.round(ratio * 100)}%`} />
 }
 
-export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle, onRename, onMove, onDelete }: Props) {
+export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle, onRename, onMove, onDelete, pinnedIds = [], onPin, onArchive, onReorder }: Props) {
   const [hovered, setHovered] = useState<{ projectId: string; dateKey: string } | null>(null)
   const days = getMonthDays(anchor)
   const periods = view === 'week' ? getWeekPeriods(today) : getMonthPeriods(today)
@@ -57,8 +61,8 @@ export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle,
           const monthCount = days.filter(({ key }) => checked.has(key)).length
           return (
             <div className="project-row-contents" data-testid="project-row" key={project.id}>
-              <div className={`project-name-cell ${hovered?.projectId === project.id ? 'hover-row' : ''}`} data-testid="project-name-cell">
-                <i className="project-dot" />
+              <div className={`project-name-cell ${hovered?.projectId === project.id ? 'hover-row' : ''}`} data-testid="project-name-cell" onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const from = event.dataTransfer.getData('text/project-id'); if (projects.some(p => p.id === from) && from !== project.id) onReorder?.(from, project.id) }}>
+                <i className="project-dot" draggable={Boolean(onReorder)} title="拖动排序，也可使用上移下移按钮" onDragStart={event => event.dataTransfer.setData('text/project-id', project.id)} />
                 {view === 'day' && <span className="month-count" aria-label={`${project.name}本月打卡`}>{monthCount}/{days.length}</span>}
                 <span data-testid="project-name" className="project-name-wrap">
                   <EditableText value={project.name} ariaLabel={`${project.name}名称`} onSave={(name) => onRename(project.id, name)} className="project-name" />
@@ -84,6 +88,8 @@ export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle,
                 : periods.map((period) => <AggregateCell key={period.key} period={period} checked={checked} />)}
               <div className="project-actions">
                 <span className="lifetime-count" aria-label={`${project.name}累计打卡`}>{checked.size}</span>
+                {onPin && <button aria-label={`${pinnedIds.includes(project.id) ? '取消置顶' : '置顶'} ${project.name}`} aria-pressed={pinnedIds.includes(project.id)} onClick={() => onPin(project.id)}><Pin size={14} /></button>}
+                {onArchive && <button aria-label={`${project.archived ? '恢复显示' : '隐藏'} ${project.name}`} onClick={() => onArchive(project.id)}>{project.archived ? <Eye size={14} /> : <EyeOff size={14} />}</button>}
                 <button aria-label={`上移 ${project.name}`} disabled={projectIndex === 0} onClick={() => onMove(project.id, -1)}><ArrowUp size={14} /></button>
                 <button aria-label={`下移 ${project.name}`} disabled={projectIndex === projects.length - 1} onClick={() => onMove(project.id, 1)}><ArrowDown size={14} /></button>
                 <button className="danger" aria-label={`删除 ${project.name}`} onClick={() => window.confirm(`删除“${project.name}”及全部打卡记录？`) && onDelete(project.id)}><Trash2 size={14} /></button>
