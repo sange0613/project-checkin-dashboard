@@ -10,7 +10,6 @@ export default defineConfig(({ mode }) => ({
       if (mode === 'desktop') return
       const assets = Object.keys(bundle).filter(name => !name.endsWith('.map'))
       const version = Date.now().toString(36)
-      this.emitFile({ type: 'asset', fileName: 'manifest.webmanifest', source: JSON.stringify({ name: '项目进度', short_name: '项目进度', start_url: './', scope: './', display: 'standalone', background_color: '#f5f5f4', theme_color: '#f5f5f4', icons: [{ src: './app-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }] }) })
       this.emitFile({ type: 'asset', fileName: 'sw.js', source: `
 const CACHE = 'project-dashboard-${version}';
 const FILES = ${JSON.stringify(['./', './app-icon.svg', ...assets.map(name => './' + name)])};
