@@ -526,7 +526,9 @@ export function applySyncStateToAppState(current: AppState, syncValue: SyncState
   return {
     ...current,
     title: settingString(sync, 'title', current.title),
-    shortcutConfig: Array.isArray(sync.settings.shortcutConfig?.value) ? sync.settings.shortcutConfig.value : current.shortcutConfig,
+    ...(Array.isArray(sync.settings.shortcutConfig?.value)
+      ? { shortcutConfig: sync.settings.shortcutConfig.value }
+      : {}),
     projects,
     checkins,
     randomCategories,

@@ -392,7 +392,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         console.error('Suite sync connection failed', error)
         if (!disposed) {
           setStatus('error')
-          setMessage(navigator.onLine ? '连接失败，请检查同步码' : '当前离线')
+          setMessage(navigator.onLine ? '同步连接失败，请重试' : '当前离线')
         }
       }
     }

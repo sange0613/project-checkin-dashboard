@@ -35,6 +35,34 @@ beforeEach(() => {
   firestoreMock.runTransaction.mockReset()
 })
 
+test.each([undefined, ['{"label":"测试","short":"测","href":"https://example.com"}']])(
+  'connects with JSON-safe cloud data when shortcut settings are %s', async (shortcutConfig) => {
+    const writes: unknown[] = []
+    function assertDefined(value: unknown) {
+      if (value === undefined) throw new Error('Unsupported field value: undefined')
+      if (value && typeof value === 'object') Object.values(value).forEach(assertDefined)
+    }
+    firestoreMock.runTransaction.mockImplementation(async (_db: unknown, callback: (transaction: {
+      get: () => Promise<{ exists: () => boolean; data: () => Record<string, never> }>
+      set: (document: unknown, value: unknown) => void
+    }) => Promise<unknown>) => callback({
+      get: async () => ({ exists: () => false, data: () => ({}) }),
+      set: (_document, value) => { assertDefined(value); writes.push(value) },
+    }))
+    localStorage.setItem('project-suite-sync-code-v1', 'SYNCFIXTEST12')
+    const { result, unmount } = renderHook(() => {
+      const [state, setState] = useState<AppState>(() => ({
+        ...createInitialState(), ...(shortcutConfig ? { shortcutConfig } : {}),
+      }))
+      return useSuiteSync(state, setState)
+    })
+    await waitFor(() => expect(result.current.status).toBe('synced'))
+    expect(writes.length).toBeGreaterThan(0)
+    if (shortcutConfig) expect(JSON.stringify(writes)).toContain('example.com')
+    unmount()
+  },
+)
+
 test('does not apply an older connection result over an edit made while it was in flight', async () => {
   let releaseFirstTransaction = () => {}
   let markFirstCollectionComplete = () => {}
