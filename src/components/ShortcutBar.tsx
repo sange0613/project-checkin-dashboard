@@ -3,7 +3,8 @@ import { useState } from 'react'
 
 type IntegratedToolId = 'daily' | 'checklist' | 'wuwu'
 
-const secondaryLinks = [
+export type Shortcut = { label: string; short: string; href: string; icon?: string; menuName?: string }
+export const defaultShortcuts: Shortcut[] = [
   { label: '英语抄写', short: '抄', href: 'https://sange1022.github.io/english-copywork-trainer/', icon: 'book' },
   { label: 'Learn Buffett', short: '巴', href: 'https://learnbuffett.com' },
   { label: 'Munger Models', short: '芒', href: 'https://mungermodels.com' },
@@ -17,13 +18,14 @@ const secondaryLinks = [
   { label: '构', menuName: '构图工具', short: '构', href: 'https://sange1022.github.io/qf-07-9a6c3e21/' },
   { label: '间', menuName: '随机平面构成', short: '间', href: 'https://sange1022.github.io/random-planar-composition/' },
   { label: '海', menuName: '轮廓文字', short: '海', href: 'https://sange1022.github.io/contour-text-studio/?v=5787e7a' },
-] as const
+]
 
 type Props = {
   onOpenIntegratedTool: (toolId: IntegratedToolId) => void
+  links?: Shortcut[]
 }
 
-export function ShortcutBar({ onOpenIntegratedTool }: Props) {
+export function ShortcutBar({ onOpenIntegratedTool, links: secondaryLinks = defaultShortcuts }: Props) {
   const [moreOpen, setMoreOpen] = useState(false)
 
   return (
@@ -45,7 +47,7 @@ export function ShortcutBar({ onOpenIntegratedTool }: Props) {
             aria-label={link.label}
             title={link.label}
           >
-            {'icon' in link ? <BookOpen size={17} /> : link.short}
+            {link.icon === 'book' ? <BookOpen size={17} /> : link.short}
           </a>
         ))}
         <a className="icon-button" href="https://github.com/sange1022" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页">

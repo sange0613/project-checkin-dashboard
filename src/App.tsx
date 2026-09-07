@@ -12,6 +12,7 @@ import { ProjectStageBoard } from './components/ProjectStageBoard'
 import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
 import { SuiteSyncPanel } from './components/SuiteSyncPanel'
 import { ShortcutBar } from './components/ShortcutBar'
+import { ShortcutSettings, readShortcuts } from './components/ShortcutSettings'
 import type { AppState, Project, StageProjectDraft, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
 import { exportState, importState } from './storage/dataTransfer'
@@ -95,6 +96,8 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [transferMessage, setTransferMessage] = useState('')
+  const [undo, setUndo] = useState<{ before: AppState; after: AppState } | null>(null)
+  useEffect(() => { if (!undo) return; const timer = setTimeout(() => setUndo(null), 12000); return () => clearTimeout(timer) }, [undo])
   const [activeToolId, setActiveToolId] = useState<IntegratedToolId | null>(null)
   const [loadedToolIds, setLoadedToolIds] = useState<IntegratedToolId[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -108,7 +111,32 @@ export default function App() {
   useEffect(() => { document.title = state.title }, [state.title])
   useEffect(() => { document.documentElement.dataset.theme = actualTheme }, [actualTheme])
 
-  const update = (change: (current: AppState) => AppState) => setState((current) => change(current))
+  const update = (change: (current: AppState) => AppState) => {
+    setState((current) => {
+      const next = change(current)
+      const keys = Object.keys(next) as (keyof AppState)[]
+      if (keys.some((key) => key !== 'view' && key !== 'anchorDate' && JSON.stringify(current[key]) !== JSON.stringify(next[key]))) {
+        const before = next.shortcutConfig && !current.shortcutConfig
+          ? { ...current, shortcutConfig: readShortcuts().map((link) => JSON.stringify(link)) }
+          : current
+        setUndo({ before, after: next })
+      }
+      return next
+    })
+  }
+  const undoLastChange = () => {
+    if (!undo) return
+    setState((current) => {
+      const next = { ...current }
+      for (const key of Object.keys(undo.after) as (keyof AppState)[]) {
+        if (JSON.stringify(undo.before[key]) !== JSON.stringify(undo.after[key]) && JSON.stringify(current[key]) === JSON.stringify(undo.after[key])) {
+          Object.assign(next, { [key]: undo.before[key] })
+        }
+      }
+      return next
+    })
+    setUndo(null)
+  }
   const visibleProjects = state.projects.filter((project) =>
     !project.archived && project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   )
@@ -272,7 +300,7 @@ export default function App() {
           ))}
         </nav>
         <div className="top-actions">
-          <ShortcutBar onOpenIntegratedTool={openIntegratedTool} />
+          <ShortcutBar onOpenIntegratedTool={openIntegratedTool} links={readShortcuts(state.shortcutConfig)} />
           <button className="icon-button" aria-label={actualTheme === 'dark' ? '切换白天模式' : '切换夜晚模式'} onClick={toggleTheme}>
             {actualTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
@@ -360,6 +388,7 @@ export default function App() {
           </div>
         </footer>
         <div className="bottom-panels">
+          <ShortcutSettings links={readShortcuts(state.shortcutConfig)} onChange={(links) => update((current) => ({ ...current, shortcutConfig: links.map((link) => JSON.stringify(link)) }))} />
           <GoalProgressSettings current={state.progressCurrent} total={state.progressTotal} onCurrentChange={updateProgressCurrent} onTotalChange={updateProgressTotal} />
           <RandomPromptManager categories={state.randomCategories} onAdd={addRandomItem} onRename={renameRandomItem} onDelete={deleteRandomItem} />
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
@@ -381,6 +410,7 @@ export default function App() {
       )}
 
       <ProjectDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={createProject} />
+      {undo && <div className="undo-toast" role="status"><span>已保存修改</span><button onClick={undoLastChange}>撤销</button><button aria-label="关闭撤销提示" onClick={() => setUndo(null)}>×</button></div>}
     </main>
   )
 }

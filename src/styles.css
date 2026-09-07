@@ -92,14 +92,24 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .month-navigation, .intensity-legend { display: flex; align-items: center; gap: 7px; }
 .intensity-legend { font-size: 11px; color: #72726d; }
 .intensity-legend i { width: 13px; height: 13px; border-radius: 4px; }
-.grid-scroll { overflow-x: auto; overscroll-behavior-inline: contain; padding-bottom: 8px; }
+.shortcut-settings { padding: 16px 0; }
+.shortcut-settings summary { cursor: pointer; font-size: 13px; }
+.shortcut-settings p, .shortcut-settings [role="status"] { color: #888; font-size: 12px; }
+.shortcut-setting-row { display: grid; grid-template-columns: 40px minmax(70px, 1fr) minmax(120px, 3fr) auto auto auto; gap: 6px; margin-top: 8px; }
+.shortcut-setting-row input { width: 100%; min-width: 0; padding: 8px; color: inherit; background: var(--theme-surface); border: 1px solid #8885; border-radius: 6px; font: inherit; font-size: 12px; }
+.shortcut-setting-row button { color: inherit; background: transparent; border: 1px solid #8885; border-radius: 6px; cursor: pointer; }
+.shortcut-setting-row button:disabled { opacity: .3; cursor: default; }
+.undo-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 18px; padding: 12px 18px; border: 1px solid #8885; border-radius: 12px; background: var(--theme-surface); color: inherit; box-shadow: 0 5px 25px #0002; font-size: 13px; white-space: nowrap; }
+.undo-toast button { background: transparent; border: 0; color: #4285ef; cursor: pointer; padding: 6px; }
+@media (max-width: 600px) { .shortcut-setting-row { grid-template-columns: 40px 1fr auto auto auto; } .shortcut-setting-row input:nth-child(3) { grid-column: 1 / -1; grid-row: 2; } }
+.grid-scroll { overflow: auto; max-height: 65vh; overscroll-behavior: contain; padding-bottom: 8px; }
 .progress-grid { --time-columns: 30; min-width: max-content; display: grid; grid-template-columns: 200px repeat(var(--time-columns), minmax(27px, 1fr)) 142px; column-gap: 7px; align-items: center; }
 .grid-week .progress-grid, .grid-month .progress-grid { width: 100%; min-width: 840px; grid-template-columns: 160px repeat(12, minmax(42px, 1fr)) 92px; column-gap: 10px; }
-.grid-header { min-height: 45px; display: flex; flex-direction: column; justify-content: center; text-align: center; color: #74746f; font-size: 11px; font-weight: 700; }
+.grid-header { position: sticky; top: 0; z-index: 5; background: var(--theme-surface); min-height: 45px; display: flex; flex-direction: column; justify-content: center; text-align: center; color: #74746f; font-size: 11px; font-weight: 700; }
 .grid-header span { font-size: 12px; }
 .grid-header small { margin-top: 4px; font-size: 9px; color: #888882; font-weight: 600; }
 .day-header.is-today span { color: #222; font-weight: 700; }
-.project-spacer { position: sticky; left: 0; z-index: 4; align-items: flex-start; background: #fff; justify-content: center; font-size: 10px; letter-spacing: .08em; }
+.project-spacer { position: sticky; left: 0; z-index: 7; align-items: flex-start; background: var(--theme-surface); justify-content: center; font-size: 10px; letter-spacing: .08em; }
 .project-row-contents { display: contents; }
 .project-name-cell, .checkin-cell, .aggregate-cell, .project-menu { min-height: 42px; border-top: 1px solid #f0f0eb; }
 .project-name-cell { position: sticky; left: 0; z-index: 3; display: flex; align-items: center; gap: 9px; padding-right: 12px; background: #fff; }

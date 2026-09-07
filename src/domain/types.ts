@@ -59,6 +59,7 @@ export type SyncState = {
 }
 
 export type AppState = {
+  shortcutConfig?: string[]
   title: string
   view: ViewMode
   anchorDate: string
