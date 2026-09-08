@@ -367,12 +367,6 @@ export default function App() {
           <CollapsibleSection id="random" title="今日随机">
             <DailyRandomPanel categories={state.randomCategories} candidates={state.randomCategories.map(category => ({ ...category, items: eligibleRandomItems(category, state.dailyRandomResults, todayKey, Number(state.preferences?.randomAvoidDays ?? 7)) }))} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
           </CollapsibleSection>
-          <nav className="today-summary" aria-label="今日摘要">
-            <button onClick={() => showCheckins('all')}>今日打卡 {todayCount}</button>
-            <button onClick={() => showCheckins('unchecked')}>未打卡 {state.projects.filter(p => !p.archived && !(state.checkins[p.id] ?? []).includes(todayKey)).length}</button>
-            <button onClick={() => showStages('active')}>待推进 {pendingCount}</button>
-            <button onClick={() => showStages('dueSoon')}>7天内到期 {dueCount}</button>
-          </nav>
           <CollapsibleSection id="not-doing" title="不为清单"><NotDoingList items={state.notDoingItems} onChange={updateNotDoingItem} /></CollapsibleSection>
 
           <section className="workspace">
@@ -383,6 +377,12 @@ export default function App() {
           </div>
         )}
 
+        <nav className="today-summary" aria-label="今日摘要">
+          <button onClick={() => showCheckins('all')}>今日打卡 {todayCount}</button>
+          <button onClick={() => showCheckins('unchecked')}>未打卡 {state.projects.filter(p => !p.archived && !(state.checkins[p.id] ?? []).includes(todayKey)).length}</button>
+          <button onClick={() => showStages('active')}>待推进 {pendingCount}</button>
+          <button onClick={() => showStages('dueSoon')}>7天内到期 {dueCount}</button>
+        </nav>
         <div className="period-toolbar">
           <div>
             <p className="eyebrow">{state.view === 'day' ? 'MONTHLY CHECK-IN' : state.view === 'week' ? 'LAST 12 WEEKS' : 'LAST 12 MONTHS'}</p>

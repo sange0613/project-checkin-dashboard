@@ -5,6 +5,14 @@ import { createInitialState } from './domain/types'
 
 beforeEach(() => localStorage.clear())
 
+test('places the daily summary immediately above the period toolbar', () => {
+  render(<App />)
+  const summary = screen.getByRole('navigation', { name: '今日摘要' })
+  expect(summary.parentElement).toHaveClass('workspace')
+  expect(summary.nextElementSibling).toHaveClass('period-toolbar')
+  expect(within(summary).getAllByRole('button')).toHaveLength(4)
+})
+
 test('pins hides restores and filters checkin projects', async () => {
   const initial = createInitialState()
   initial.projects = [{ id: 'a', name: '甲', archived: false, createdAt: '' }, { id: 'b', name: '乙', archived: false, createdAt: '' }]

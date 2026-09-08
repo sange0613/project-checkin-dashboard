@@ -712,7 +712,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .shortcut-order-list button:disabled { opacity: .25; cursor: default; }
 .shortcut-setting-row { grid-template-columns: 40px minmax(70px, 1fr) minmax(120px, 3fr) repeat(3, auto); }
 .app-shell > .collapsible-section { margin: 0 24px; }
-.app-shell > .today-summary { margin: 0 24px; padding: 10px 0; }
+.workspace > .today-summary { margin: 0 0 14px; padding: 0; gap: 8px clamp(12px, 2vw, 28px); }
+.workspace > .today-summary button { font-size: clamp(14px, 1.6vw, 16px); font-weight: 600; white-space: nowrap; }
 .app-shell > .collapsible-section .section-toggle { min-height: 32px; }
 .app-shell > .collapsible-section .daily-random button { min-height: 70px; }
 #section-not-doing .not-doing-list { grid-template-columns: repeat(6, minmax(100px, 1fr)); }
