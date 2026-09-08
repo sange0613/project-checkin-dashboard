@@ -700,6 +700,17 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 
 /* Keep action targets wide enough after the legacy responsive rules. */
 .grid-header.menu-spacer { z-index: 8; }
+.bottom-panels > details { padding: 0; }
+.bottom-panels > details > summary { padding: 13px 2px; color: #777771; font-size: 11px; font-weight: 500; list-style: none; cursor: pointer; }
+.bottom-panels > details > summary::-webkit-details-marker { display: none; }
+.bottom-panels > details > summary:hover { color: var(--theme-text); }
+[data-theme="dark"] .bottom-panels > details > summary { color: #a0a09a; }
+.shortcut-order-list { list-style: none; padding: 0; margin: 12px 0; max-width: 560px; }
+.shortcut-order-list li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid #8882; font-size: 12px; }
+.shortcut-order-list span { flex: 1; }
+.shortcut-order-list button { border: 0; background: transparent; color: #888; cursor: pointer; width: 36px; min-height: 36px; }
+.shortcut-order-list button:disabled { opacity: .25; cursor: default; }
+.shortcut-setting-row { grid-template-columns: 40px minmax(70px, 1fr) minmax(120px, 3fr) repeat(3, auto); }
 .app-shell > .collapsible-section { margin: 0 24px; }
 .app-shell > .today-summary { margin: 0 24px; padding: 10px 0; }
 .app-shell > .collapsible-section .section-toggle { min-height: 32px; }

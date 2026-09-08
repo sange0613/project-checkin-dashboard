@@ -117,6 +117,7 @@ export default function App() {
   }, [])
   const [transferMessage, setTransferMessage] = useState('')
   const [undo, setUndo] = useState<{ before: AppState; after: AppState } | null>(null)
+  const shortcutOrder = Array.isArray(state.preferences?.shortcutOrder) ? state.preferences.shortcutOrder : []
   useEffect(() => { if (!undo) return; const timer = setTimeout(() => setUndo(null), 12000); return () => clearTimeout(timer) }, [undo])
   const [activeToolId, setActiveToolId] = useState<IntegratedToolId | null>(null)
   const [loadedToolIds, setLoadedToolIds] = useState<IntegratedToolId[]>([])
@@ -344,7 +345,7 @@ export default function App() {
           ))}
         </nav>
         <div className="top-actions">
-          <ShortcutBar onOpenIntegratedTool={openIntegratedTool} links={readShortcuts(state.shortcutConfig)} />
+          <ShortcutBar onOpenIntegratedTool={openIntegratedTool} links={readShortcuts(state.shortcutConfig)} order={shortcutOrder} />
           <button className="icon-button" aria-label={actualTheme === 'dark' ? '切换白天模式' : '切换夜晚模式'} onClick={toggleTheme}>
             {actualTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
@@ -452,7 +453,7 @@ export default function App() {
             <h3>阶段历史</h3><p>从本次更新开始记录进入阶段、任务完结及重新开启的时间，记录随同步码同步。</p>
             {readStageEvents(state).map((event, index) => <div className="recovery-row" key={`${event.at}-${index}`}>{event.name} · {event.label} · {event.action} · {new Date(event.at).toLocaleString('zh-CN')}</div>)}
           </details>
-          <ShortcutSettings links={readShortcuts(state.shortcutConfig)} onChange={(links) => update((current) => ({ ...current, shortcutConfig: links.map((link) => JSON.stringify(link)) }))} />
+          <ShortcutSettings links={readShortcuts(state.shortcutConfig)} order={shortcutOrder} onOrderChange={order => update(current => ({ ...current, preferences: { ...current.preferences, shortcutOrder: order } }))} onChange={(links) => update((current) => ({ ...current, shortcutConfig: links.map((link) => JSON.stringify(link)) }))} />
           <GoalProgressSettings current={state.progressCurrent} total={state.progressTotal} onCurrentChange={updateProgressCurrent} onTotalChange={updateProgressTotal} />
           <RandomPromptManager categories={state.randomCategories} onAdd={addRandomItem} onRename={renameRandomItem} onDelete={deleteRandomItem} />
           <RandomHistory categories={state.randomCategories} history={state.dailyRandomResults} />
