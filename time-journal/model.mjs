@@ -1,3 +1,4 @@
+export const TIME_STEP = 30;
 export const CATEGORIES = [
   { id: 'work', name: '工作', color: '#aaaaaa' },
   { id: 'entertainment', name: '娱乐', color: '#808080' },
@@ -21,11 +22,14 @@ export function normalizeRecord(record) {
 export function splitInterval(start, end) {
   const pieces = [];
   for (let cursor = start; cursor < end;) {
-    const next = Math.min(end, (Math.floor(cursor / 15) + 1) * 15);
+    const next = Math.min(end, (Math.floor(cursor / TIME_STEP) + 1) * TIME_STEP);
     pieces.push({ start: cursor, end: next });
     cursor = next;
   }
   return pieces;
+}
+export function snapMinute(minute) {
+  return Math.max(0, Math.min(1440, Math.round(minute / TIME_STEP) * TIME_STEP));
 }
 export function timeToMinutes(value) {
   if (!/^\d{2}:\d{2}$/.test(value)) return NaN;
@@ -112,5 +116,5 @@ export function nextOpenSlot(blocks, preferred = 540) {
   const selected = gaps.find(g => g.start <= preferred && g.end > preferred) || gaps.find(g => g.start >= preferred) || gaps[0];
   if (!selected) return null;
   const start = selected.start <= preferred && selected.end > preferred ? preferred : selected.start;
-  return { start, end: Math.min(start + 60, selected.end) };
+  return { start, end: Math.min(start + TIME_STEP, selected.end) };
 }

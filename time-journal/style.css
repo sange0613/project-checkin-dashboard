@@ -30,7 +30,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, .timeline:focus-visi
 .icon-button:hover { background: #292929; }
 .timeline-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: var(--input-border) transparent; }
 .timeline { height: 138px; margin-inline: 2px; position: relative; touch-action: pan-y; user-select: none; cursor: crosshair; isolation: isolate; }
-.time-grid { position: absolute; left: 0; right: 0; top: 40px; height: 40px; display: grid; grid-template-columns: repeat(96, minmax(0, 1fr)); gap: 2px; pointer-events: none; }
+.time-grid { position: absolute; left: 0; right: 0; top: 40px; height: 40px; display: grid; grid-template-columns: repeat(var(--time-cell-count, 48), minmax(0, 1fr)); gap: 2px; pointer-events: none; }
 .time-cell { background: #252525; border-radius: 2px; }
 .hour-labels { position: absolute; top: 96px; left: 0; right: 0; font-size: 12px; height: 20px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .hour-label { position: absolute; transform: translateX(-50%); }
