@@ -43,6 +43,7 @@ const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   daily: 'calorie-tracker-v1',
   checklist: 'qingdan-app-state-v2',
   wuwu: 'daily-cost-items-v2',
+  time: 'time-noticed.v1',
 }
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>
@@ -424,7 +425,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     ) as Record<string, Exclude<SuiteAppId, 'dashboard'>>
     const onStorage = (event: StorageEvent) => {
       const id = event.key ? storageToApp[event.key] : undefined
-      if (!id || !sessionRef.current?.ready) return
+      if (!id || !sessionRef.current || sessionRef.current.disposed) return
       const value = parseJson(event.newValue)
       if (value === undefined) return
       const previousMeta = metaRef.current[id]

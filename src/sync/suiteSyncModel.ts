@@ -1,7 +1,8 @@
 import { createSyncStateFromAppState, mergeSyncStates, normalizeSyncState } from '../domain/cloudSync'
 import type { AppState, SyncState, VersionStamp } from '../domain/types'
+import { mergeTimeJournals, normalizeTimeJournal } from './timeJournalSync'
 
-export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist', 'wuwu'] as const
+export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist', 'wuwu', 'time'] as const
 
 export type SuiteAppId = typeof SUITE_APP_IDS[number]
 
@@ -57,7 +58,7 @@ function normalizePayload(id: SuiteAppId, value: unknown): VersionedPayload | un
     updatedAt: typeof value.updatedAt === 'number' && Number.isFinite(value.updatedAt) ? value.updatedAt : 0,
     updatedBy: typeof value.updatedBy === 'string' ? value.updatedBy : '',
   }
-  const normalizedValue = id === 'dashboard' ? normalizeDashboardValue(value.value, stampValue) : value.value
+  const normalizedValue = id === 'dashboard' ? normalizeDashboardValue(value.value, stampValue) : id === 'time' ? normalizeTimeJournal(value.value, stampValue) : value.value
   if (normalizedValue === undefined) return undefined
   return {
     value: normalizedValue,
@@ -211,6 +212,7 @@ function mergeAppPayload(id: SuiteAppId, left: VersionedPayload, right: Versione
   if (id === 'dashboard') value = mergeSyncStates(normalizeSyncState(latest.value), normalizeSyncState(older.value))
   else if (id === 'daily') value = mergeDaily(latest.value, older.value)
   else if (id === 'checklist') value = mergeChecklist(latest.value, older.value)
+  else if (id === 'time') value = mergeTimeJournals(latest.value, older.value)
   return { ...latest, value }
 }
 

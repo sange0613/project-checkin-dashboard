@@ -4,6 +4,32 @@ import { createInitialState, type SyncState } from '../domain/types'
 import { cleanSyncCode, mergeSuiteStates, normalizeSuiteState } from './suiteSyncModel'
 
 describe('suite sync model', () => {
+  it('merges time journal history by date instead of replacing the entire history', () => {
+    const block = { id: 'one', start: 540, end: 600, category: 'work', title: '' }
+    const merged = mergeSuiteStates(
+      { apps: { time: { value: { version: 2, days: { '2026-10-13': [block] }, dayVersions: { '2026-10-13': { updatedAt: 10, updatedBy: 'a' } } }, updatedAt: 10, updatedBy: 'a' } } },
+      { apps: { time: { value: { version: 2, days: { '2026-10-14': [{ ...block, id: 'two', category: 'rest' }] }, dayVersions: { '2026-10-14': { updatedAt: 20, updatedBy: 'b' } } }, updatedAt: 20, updatedBy: 'b' } } },
+    )
+    expect(merged.apps).toHaveProperty('time.value.days.2026-10-13', [block])
+    expect(merged.apps).toHaveProperty('time.value.days.2026-10-14', [{ ...block, id: 'two', category: 'rest' }])
+  })
+
+  it('keeps a newer day reset even when another device saves a different day later', () => {
+    const reset = { apps: { time: { value: { version: 2, days: { '2026-10-13': [] }, dayVersions: { '2026-10-13': { updatedAt: 30, updatedBy: 'a' } } }, updatedAt: 30, updatedBy: 'a' } } }
+    const stale = { apps: { time: { value: { version: 2, days: { '2026-10-13': [{ id: 'old', start: 0, end: 60, category: 'work', title: '' }], '2026-10-14': [] }, dayVersions: { '2026-10-13': { updatedAt: 10, updatedBy: 'b' }, '2026-10-14': { updatedAt: 40, updatedBy: 'b' } } }, updatedAt: 40, updatedBy: 'b' } } }
+    expect(mergeSuiteStates(reset, stale).apps).toHaveProperty('time.value.days.2026-10-13', [])
+    expect(mergeSuiteStates(reset, stale)).toEqual(mergeSuiteStates(stale, reset))
+  })
+
+  it('migrates existing raw time records and keeps them when a blank device connects', () => {
+    const block = { id: 'one', start: 540, end: 600, category: 'work', title: '' }
+    const merged = mergeSuiteStates(
+      { apps: { time: { value: { '2026-10-13': [block] }, updatedAt: 10, updatedBy: 'old' } } },
+      { apps: { time: { value: { version: 2, days: {}, dayVersions: {} }, updatedAt: 20, updatedBy: 'new' } } },
+    )
+    expect(merged.apps).toHaveProperty('time.value.days.2026-10-13', [block])
+  })
+
   it('cleans sync codes the same way as the calorie tracker', () => {
     expect(cleanSyncCode(' ab-cd_1234 efgh5678 ')).toBe('ABCD1234EFGH5678')
   })

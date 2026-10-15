@@ -25,13 +25,22 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin || !url.href.startsWith(self.registration.scope)) return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(() => caches.open(CACHE).then(cache => cache.match('./', { ignoreVary: true }))));
+    const fallback = url.pathname.endsWith('/time-journal/') || url.pathname.endsWith('/time-journal/index.html') ? './time-journal/index.html' : './';
+    event.respondWith(fetch(event.request).catch(() => caches.open(CACHE).then(cache => cache.match(fallback, { ignoreVary: true }))));
   } else if (url.pathname.includes('/assets/') || url.pathname.endsWith('/app-icon.svg')) {
     event.respondWith(caches.match(event.request, { ignoreVary: true }).then(cached => cached || fetch(event.request)));
   }
 });` })
     },
   }],
+  build: {
+    rollupOptions: {
+      input: {
+        dashboard: fileURLToPath(new URL('./index.html', import.meta.url)),
+        timeJournal: fileURLToPath(new URL('./time-journal/index.html', import.meta.url)),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@app-sync': fileURLToPath(new URL(mode === 'desktop' ? './src/hooks/useLocalOnlySync.ts' : './src/hooks/useSuiteSync.ts', import.meta.url)),
