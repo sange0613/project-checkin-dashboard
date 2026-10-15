@@ -1,4 +1,4 @@
-import { CATEGORIES, categoryPalette, applyCategory, minutesToTime, summarize, averageHistory, nextOpenSlot, splitInterval, distributionSegments, clockSnapshot, clearDay, restoreDay } from './model.mjs';
+import { TIME_STEP, CATEGORIES, categoryPalette, applyCategory, minutesToTime, summarize, averageHistory, nextOpenSlot, splitInterval, snapMinute, distributionSegments, clockSnapshot, clearDay, restoreDay } from './model.mjs';
 import { TIME_JOURNAL_KEY, normalizeTimeJournal, mergeTimeJournals, updateTimeJournal } from '../src/sync/timeJournalSync.ts';
 
 const $ = id => document.getElementById(id);
@@ -57,7 +57,9 @@ function persist() {
   }
 }
 function renderRuler() {
-  for (let i = 0; i < 96; i++) {
+  const cellCount = 1440 / TIME_STEP;
+  $('time-grid').style.setProperty('--time-cell-count', cellCount);
+  for (let i = 0; i < cellCount; i++) {
     const cell = document.createElement('span');
     cell.className = 'time-cell';
     $('time-grid').append(cell);
@@ -204,7 +206,7 @@ function positionCategoryPicker() {
   picker.style.left = `${Math.max(2, Math.min(end - width / 2, section.width - width - 2))}px`;
 }
 function openCategoryPicker(block = null, focus = false) {
-  const slot = block || nextOpenSlot(records(), Math.min(1380, Math.floor(clockSnapshot().minuteOfDay / 60) * 60));
+  const slot = block || nextOpenSlot(records(), Math.min(1440 - TIME_STEP, Math.floor(clockSnapshot().minuteOfDay / TIME_STEP) * TIME_STEP));
   if (!slot) { notify('这一天已经完整记录。点击已有时间块可以修改。'); return; }
   pendingBlock = { ...slot };
   pendingDate = selectedDate;
@@ -273,7 +275,7 @@ $('records-toggle').addEventListener('click', () => {
 const timeline = $('timeline');
 const minuteAt = x => {
   const rect = timeline.getBoundingClientRect();
-  return Math.max(0, Math.min(1440, Math.round((x - rect.left) / rect.width * 1440 / 15) * 15));
+  return snapMinute((x - rect.left) / rect.width * 1440);
 };
 function clearSelection() { selection = null; $('selection-preview').hidden = true; }
 timeline.addEventListener('pointerdown', e => {
@@ -293,9 +295,9 @@ timeline.addEventListener('pointerup', e => {
   const last = minuteAt(e.clientX);
   let start = Math.min(selection.start, last), end = Math.max(selection.start, last);
   if (end === start) {
-    start = Math.min(1425, start);
+    start = Math.min(1440 - TIME_STEP, start);
     const next = records().filter(b => b.start > start).sort((a, b) => a.start - b.start)[0];
-    end = Math.min(1440, start + 60, next?.start || 1440);
+    end = Math.min(1440, start + TIME_STEP, next?.start || 1440);
   }
   clearSelection();
   if (timeline.hasPointerCapture(e.pointerId)) timeline.releasePointerCapture(e.pointerId);
