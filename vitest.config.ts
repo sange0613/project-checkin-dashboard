@@ -8,6 +8,7 @@ export default defineConfig({
     },
   },
   test: {
+    env: { VITE_JOURNAL_VERSION: 'test-build' },
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',

@@ -184,12 +184,13 @@ test('opens the local time journal inside the dashboard and returns to projects'
   await user.click(screen.getByRole('button', { name: '时间记录' }))
   const tools = screen.getByRole('region', { name: '综合工具' })
   const frame = within(tools).getByTitle('时间记录')
-  expect(frame).toHaveAttribute('src', `${import.meta.env.BASE_URL}time-journal/index.html`)
-  expect(within(tools).getByRole('link', { name: '在新标签页打开时间记录' })).toHaveAttribute('href', `${import.meta.env.BASE_URL}time-journal/index.html`)
+  expect(import.meta.env.VITE_JOURNAL_VERSION).toBeTruthy()
+  expect(frame).toHaveAttribute('src', `${import.meta.env.BASE_URL}time-journal/index.html?v=${import.meta.env.VITE_JOURNAL_VERSION}`)
+  expect(within(tools).getByRole('link', { name: '在新标签页打开时间记录' })).toHaveAttribute('href', `${import.meta.env.BASE_URL}time-journal/index.html?v=${import.meta.env.VITE_JOURNAL_VERSION}`)
   await user.click(within(tools).getByRole('button', { name: '关闭综合工具' }))
   expect(screen.getByRole('region', { name: '打卡活动' })).toBeVisible()
   await user.click(screen.getByRole('button', { name: '时间记录' }))
-  expect(within(screen.getByRole('region', { name: '综合工具' })).getByTitle('时间记录')).toHaveAttribute('src', `${import.meta.env.BASE_URL}time-journal/index.html`)
+  expect(within(screen.getByRole('region', { name: '综合工具' })).getByTitle('时间记录')).toHaveAttribute('src', `${import.meta.env.BASE_URL}time-journal/index.html?v=${import.meta.env.VITE_JOURNAL_VERSION}`)
 })
 
 test('opens the layout tool in its original standalone page', () => {
