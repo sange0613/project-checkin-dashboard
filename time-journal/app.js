@@ -104,7 +104,7 @@ function renderDistribution(totals, { target = 'distribution-chart', average = f
   const center = document.createElement('div');
   center.className = 'daily-ring-center';
   center.setAttribute('aria-hidden', 'true');
-  center.innerHTML = `<strong>${average ? '日均' : '今天'}</strong><span>${average ? (empty ? '暂无历史记录' : `${days} 天记录`) : '24 小时'}</span>`;
+  center.innerHTML = `<strong>${average ? (empty ? '—' : days) : '24'}</strong><span>${average ? (empty ? '暂无历史记录' : '天记录') : '小时'}</span>`;
   chart.append(svg, center);
   $(target).replaceChildren(chart, legend);
 }
@@ -140,7 +140,7 @@ function render() {
       const tile = document.createElement('span');
       tile.className = 'block-tile';
       tile.style.left = `${(segment.start - block.start) / (block.end - block.start) * 100}%`;
-      tile.style.width = `max(1px, calc(${(segment.end - segment.start) / (block.end - block.start) * 100}% - 2px))`;
+      tile.style.width = `max(1px, calc(${(segment.end - segment.start) / (block.end - block.start) * 100}% - var(--time-block-gap)))`;
       tile.setAttribute('aria-hidden', 'true');
       button.append(tile);
     }

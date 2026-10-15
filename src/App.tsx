@@ -62,7 +62,7 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, on
   }, [activeToolId])
 
   return (
-    <section className="integrated-workspace" aria-label="综合工具">
+    <section className={`integrated-workspace${activeToolId === 'time' ? ' time-workspace' : ''}`} aria-label="综合工具">
       <header className="integrated-toolbar">
         <nav className="integrated-tabs" aria-label="综合工具切换">
           {integratedTools.map((tool) => (
