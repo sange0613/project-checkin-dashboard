@@ -1,7 +1,7 @@
 import { BookOpen, Github, MoreHorizontal } from 'lucide-react'
 import { Fragment, useState } from 'react'
 
-type IntegratedToolId = 'daily' | 'checklist' | 'wuwu'
+type IntegratedToolId = 'daily' | 'checklist' | 'wuwu' | 'time'
 
 export type Shortcut = { label: string; short: string; href: string; icon?: string; menuName?: string; hidden?: boolean; pinned?: boolean }
 export const defaultShortcuts: Shortcut[] = [
@@ -29,6 +29,7 @@ type Props = {
 export function shortcutEntries(links: Shortcut[]) {
   return [
     { id: 'daily', label: '饮 · 每日卡路里' }, { id: 'checklist', label: '清 · 清单打卡' }, { id: 'wuwu', label: '物 · 物品日均成本' },
+    { id: 'time', label: '时 · 时间记录' },
     { id: 'text', label: '字 · 字间排版' }, { id: 'vocabulary', label: '词 · 英语词汇学习' },
     ...links.map(link => ({ id: link.href, label: `${link.short} · ${link.label}` })), { id: 'github', label: 'GitHub' },
   ]
@@ -41,7 +42,7 @@ export function sortShortcuts<T extends { id: string }>(entries: T[], order: str
 export function ShortcutBar({ onOpenIntegratedTool, links: secondaryLinks = defaultShortcuts, order = [] }: Props) {
   const [moreOpen, setMoreOpen] = useState(false)
   const primary = [
-    ...(['daily', 'checklist', 'wuwu'] as const).map((id, i) => ({ id, node: <button type="button" className="icon-button shortcut-character" aria-label={['每日卡路里', '清单打卡', '物品日均成本'][i]} title={['每日卡路里', '清单打卡', '物品日均成本'][i]} onClick={() => onOpenIntegratedTool(id)}>{['饮', '清', '物'][i]}</button> })),
+    ...(['daily', 'checklist', 'wuwu', 'time'] as const).map((id, i) => ({ id, node: <button type="button" className="icon-button shortcut-character" aria-label={['每日卡路里', '清单打卡', '物品日均成本', '时间记录'][i]} title={['每日卡路里', '清单打卡', '物品日均成本', '时间记录'][i]} onClick={() => onOpenIntegratedTool(id)}>{['饮', '清', '物', '时'][i]}</button> })),
     { id: 'text', node: <a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a> },
     { id: 'vocabulary', node: <a className="icon-button shortcut-character vocabulary-shortcut" href="https://sange1022.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="英语词汇学习">词</a> },
     ...secondaryLinks.filter((link, index) => !link.hidden && (link.pinned ?? index < 4)).map(link => ({ id: link.href, node: <span className="desktop-shortcuts"><a className="icon-button shortcut-character" href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label} title={link.label}>{link.icon === 'book' ? <BookOpen size={17} /> : link.short}</a></span> })),

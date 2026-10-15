@@ -466,7 +466,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 @media (max-width: 760px) {
   .app-shell { width: 100%; min-height: 100vh; margin: 0; border: 0; border-radius: 0; }
   .topbar { grid-template-columns: 1fr auto; padding: 14px 18px; gap: 12px; }
-  .top-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; gap: 3px; overflow: visible; }
+  .top-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; flex-wrap: wrap; gap: 3px; overflow: visible; }
   .desktop-shortcuts { display: none; }
   .shortcut-more-wrap { display: inline-flex; }
   .top-actions .icon-button { width: 40px; min-height: 40px; flex-basis: 40px; }

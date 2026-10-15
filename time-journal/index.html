@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="记录真实发生的一天，在一条 24 小时时间轴上，看清时间的去向。">
+  <title>时间记录</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111111'/%3E%3Cpath d='M14 37h36M23 22v24M32 17v30M41 27v20' stroke='%23dddddd' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2.8 7M3 4v7h7"/></symbol>
+  </defs></svg>
+  <main class="shell">
+    <header class="clock-header">
+      <h1 id="current-date"></h1>
+      <time id="live-time" class="live-time" aria-label="当前时间" aria-live="off"></time>
+    </header>
+    <section class="day-section" aria-label="每日时间记录">
+      <div id="category-picker" class="category-picker" role="group" aria-label="选择时间类型" hidden></div>
+      <div class="timeline-scroll" id="timeline-scroll">
+        <div class="timeline" id="timeline" aria-label="24 小时时间轴，单击或拖动记录时间，按回车键也可新建记录" tabindex="0" title="单击或拖动，记录时间">
+          <div class="time-grid" id="time-grid" aria-hidden="true"></div>
+          <div id="blocks" class="blocks"></div>
+          <div class="selection-preview" id="selection-preview" hidden><span></span></div>
+          <div id="hour-labels" class="hour-labels" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="record-tools"><button class="quiet-button" id="records-toggle" hidden aria-expanded="false"></button><button class="reset-button" id="reset-day" aria-label="重置今天" title="重置今天" disabled><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg></button></div>
+      <div class="record-list" id="record-list" hidden></div>
+    </section>
+    <section class="distribution" aria-label="时间占比">
+      <div class="distribution-grid">
+        <div class="distribution-body" id="distribution-chart" aria-label="今天" aria-live="polite"></div>
+        <div class="distribution-body average-chart" id="average-chart" aria-label="历史日均" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+  <p id="storage-status" class="storage-status" role="status" hidden></p>
+  <div class="toast" id="toast" role="status" hidden><span></span><button id="undo-button" hidden>撤销</button></div>
+</body>
+</html>

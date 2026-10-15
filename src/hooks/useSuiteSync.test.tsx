@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 import { createInitialState, type AppState } from '../domain/types'
 import { useSuiteSync } from './useSuiteSync'
 import { createSyncStateFromAppState } from '../domain/cloudSync'
+import { normalizeTimeJournal, type TimeJournal } from '../sync/timeJournalSync'
 
 const firestoreMock = vi.hoisted(() => ({
   runTransaction: vi.fn(),
@@ -34,6 +35,59 @@ vi.mock('firebase/firestore', () => {
 beforeEach(() => {
   localStorage.clear()
   firestoreMock.runTransaction.mockReset()
+})
+
+test('uploads existing time history and receives other dates with the original suite code', async () => {
+  const block = { id: 'local', start: 0, end: 60, category: 'work', title: '' }
+  const remote = { id: 'remote', start: 0, end: 120, category: 'rest', title: '' }
+  const writes: { suite: { apps: { time?: { value: TimeJournal } } } }[] = []
+  localStorage.setItem('project-suite-sync-code-v1', 'TIMEJOURNALQA12')
+  localStorage.setItem('time-noticed.v1', JSON.stringify({ '2026-10-13': [block] }))
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({
+    get: async (document: { path: string }) => ({
+      exists: () => document.path !== 'syncSpaces/TIMEJOURNALQA12',
+      data: () => ({ suite: { apps: { time: { value: normalizeTimeJournal({ '2026-10-14': [remote] }), updatedAt: 10, updatedBy: 'other' } } } }),
+    }),
+    set: (_document: unknown, value: typeof writes[number]) => writes.push(value),
+  }))
+  const { result, unmount } = renderHook(() => {
+    const [state, setState] = useState(createInitialState())
+    return useSuiteSync(state, setState)
+  })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  expect(writes[0].suite.apps.time?.value.days['2026-10-13']).toEqual([block])
+  expect(writes[0].suite.apps.time?.value.days['2026-10-14']).toEqual([remote])
+  expect(JSON.parse(localStorage.getItem('time-noticed.v1') || '{}').days['2026-10-14']).toEqual([remote])
+  unmount()
+})
+
+test('does not overwrite an iframe time edit while the initial connection is in flight', async () => {
+  let release = () => {}
+  let collected = () => {}
+  const waiting = new Promise<void>(resolve => { release = resolve })
+  const collection = new Promise<void>(resolve => { collected = resolve })
+  let count = 0
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => {
+    const result = await callback({ get: async () => ({ exists: () => false, data: () => ({}) }), set: () => {} })
+    if (++count === 1) { collected(); await waiting }
+    return result
+  })
+  localStorage.setItem('project-suite-sync-code-v1', 'TIMEJOURNALQA12')
+  localStorage.setItem('time-noticed.v1', JSON.stringify(normalizeTimeJournal({ '2026-10-15': [] })))
+  const { result, unmount } = renderHook(() => {
+    const [state, setState] = useState(createInitialState())
+    return useSuiteSync(state, setState)
+  })
+  await collection
+  const edited = normalizeTimeJournal({ '2026-10-15': [{ id: 'new', start: 0, end: 60, category: 'work', title: '' }] }, { updatedAt: Date.now(), updatedBy: 'iframe' })
+  act(() => {
+    localStorage.setItem('time-noticed.v1', JSON.stringify(edited))
+    window.dispatchEvent(new StorageEvent('storage', { key: 'time-noticed.v1', newValue: JSON.stringify(edited), storageArea: localStorage }))
+  })
+  release()
+  await waitFor(() => expect(result.current.status).toBe('syncing'))
+  expect(JSON.parse(localStorage.getItem('time-noticed.v1') || '{}')).toEqual(edited)
+  unmount()
 })
 
 test('preserves pending edits after a reload using the last acknowledged checkpoint', async () => {

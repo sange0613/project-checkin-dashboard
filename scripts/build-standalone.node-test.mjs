@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { runInNewContext } from 'node:vm'
 
 test('inlines Vite CSS and JavaScript into one HTML file', () => {
   const root = mkdtempSync(join(tmpdir(), 'standalone-html-'))
@@ -25,8 +26,25 @@ test('inlines Vite CSS and JavaScript into one HTML file', () => {
   assert.equal(failure, undefined, failure?.stderr?.toString())
   const html = readFileSync(output, 'utf8')
   assert.match(html, /<style>body \{ color: black; \}/)
-  assert.match(html, /<script type="module">document\.querySelector/)
+  assert.match(html, /<script type="module">[\s\S]*document\.querySelector/)
   assert.doesNotMatch(html, /assets\/app\.(css|js)/)
   assert.match(html, /<\\\/style>/)
   assert.match(html, /<\\\/script>/)
+})
+
+test('bundles shared static imports so standalone HTML can start without adjacent chunks', () => {
+  const root = mkdtempSync(join(tmpdir(), 'standalone-shared-'))
+  const assets = join(root, 'assets')
+  mkdirSync(assets)
+  writeFileSync(join(root, 'index.html'), '<link rel="modulepreload" href="./assets/shared.js"><link rel="stylesheet" href="./assets/app.css"><script type="module" src="./assets/app.js"></script>')
+  writeFileSync(join(assets, 'app.css'), 'body{}')
+  writeFileSync(join(assets, 'shared.js'), 'export const title = "时间记录已就绪";')
+  writeFileSync(join(assets, 'app.js'), 'import {title} from "./shared.js"; document.title = title;')
+  const output = join(root, 'output.html')
+  execFileSync(process.execPath, ['scripts/build-standalone.mjs', '--input', join(root, 'index.html'), '--output', output])
+  const html = readFileSync(output, 'utf8')
+  const document = { title: '' }
+  runInNewContext(html.match(/<script type="module">([\s\S]*?)<\/script>/)[1], { document })
+  assert.equal(document.title, '时间记录已就绪')
+  assert.doesNotMatch(html, /rel="modulepreload"/)
 })

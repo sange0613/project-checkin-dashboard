@@ -34,6 +34,7 @@ const integratedTools = [
   { id: 'daily', label: '饮', name: '每日卡路里', url: 'https://sange1022.github.io/daily-calorie-tracker/' },
   { id: 'checklist', label: '清', name: '清单打卡', url: 'https://sange1022.github.io/qingdan-checklist/' },
   { id: 'wuwu', label: '物', name: '物品日均成本', url: 'https://sange1022.github.io/wuwu/' },
+  { id: 'time', label: '时', name: '时间记录', url: `${import.meta.env.BASE_URL}time-journal/index.html` },
 ] as const
 
 type IntegratedToolId = typeof integratedTools[number]['id']
@@ -48,6 +49,17 @@ type IntegratedToolWorkspaceProps = {
 
 function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, onSelect, onClose }: IntegratedToolWorkspaceProps) {
   const activeTool = integratedTools.find((tool) => tool.id === activeToolId) ?? integratedTools[0]
+  const activeTabRef = useRef<HTMLButtonElement>(null)
+  const standaloneJournal = useMemo(() => {
+    try {
+      const payload = document.getElementById('standalone-time-journal')?.textContent
+      const value = payload ? JSON.parse(payload) : undefined
+      return typeof value === 'string' ? value : undefined
+    } catch { return undefined }
+  }, [])
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [activeToolId])
 
   return (
     <section className="integrated-workspace" aria-label="综合工具">
@@ -56,6 +68,7 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, on
           {integratedTools.map((tool) => (
             <button
               type="button"
+              ref={tool.id === activeToolId ? activeTabRef : undefined}
               key={`${tool.id}-${dataRevision}`}
               className={tool.id === activeToolId ? 'active' : ''}
               aria-pressed={tool.id === activeToolId}
@@ -66,9 +79,9 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, on
           ))}
         </nav>
         <div className="integrated-toolbar-actions">
-          <a className="icon-button" href={activeTool.url} target="_blank" rel="noopener noreferrer" aria-label={`在新标签页打开${activeTool.name}`} title="在新标签页打开">
+          {!(activeTool.id === 'time' && standaloneJournal) && <a className="icon-button" href={activeTool.url} target="_blank" rel="noopener noreferrer" aria-label={`在新标签页打开${activeTool.name}`} title="在新标签页打开">
             <ExternalLink size={16} />
-          </a>
+          </a>}
           <button type="button" className="icon-button" aria-label="关闭综合工具" title="返回项目进度" onClick={onClose}>
             <X size={17} />
           </button>
@@ -83,6 +96,7 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, on
               key={tool.id}
               className="integrated-frame"
               src={tool.url}
+              srcDoc={tool.id === 'time' ? standaloneJournal : undefined}
               title={tool.name}
               hidden={tool.id !== activeToolId}
             />
