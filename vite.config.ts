@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig(({ mode }) => ({
+  define: { 'import.meta.env.VITE_JOURNAL_VERSION': JSON.stringify(Date.now().toString(36)) },
   plugins: [react(), {
     name: 'dashboard-offline',
     apply: 'build',
