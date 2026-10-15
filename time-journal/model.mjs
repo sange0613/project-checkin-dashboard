@@ -1,6 +1,6 @@
 export const TIME_STEP = 30;
 export const CATEGORIES = [
-  { id: 'work', name: '工作', color: '#aaaaaa' },
+  { id: 'work', name: '工作', color: '#ffffff' },
   { id: 'entertainment', name: '娱乐', color: '#808080' },
   { id: 'rest', name: '休息', color: '#595959' },
 ];
@@ -88,12 +88,8 @@ export function restoreDay(store, date, removed) {
   }
   return { next: { ...store, [date]: merged }, error: '' };
 }
-export function categoryPalette(totals) {
-  const longest = Math.max(...CATEGORIES.map(category => totals[category.id] || 0));
-  return CATEGORIES.map(category => ({
-    ...category,
-    color: longest > 0 && totals[category.id] === longest ? '#ffffff' : category.color,
-  }));
+export function categoryPalette(_totals) {
+  return CATEGORIES.map(category => ({ ...category }));
 }
 export function distributionSegments(totals) {
   let offset = 0;
