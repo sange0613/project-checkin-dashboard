@@ -732,3 +732,23 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
   .shortcut-setting-row input:nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
   .conflict-choices { grid-template-columns: 1fr; }
 }
+
+/* Keep the time journal and its tool navigation on one quiet dark canvas. */
+.time-workspace, .time-workspace .integrated-frame-stack, .time-workspace .integrated-frame { background: #111111; }
+.time-workspace .integrated-toolbar { background: #111111; border-color: #282828; }
+.time-workspace .integrated-tabs button { color: #8d8d8d; font-weight: 400; }
+.time-workspace .integrated-tabs button span { color: #a3a3a3; }
+.time-workspace .integrated-tabs button:hover { background: #202020; color: #eeeeee; }
+.time-workspace .integrated-tabs button.active { background: #282828; color: #eeeeee; }
+.time-workspace .integrated-tabs button.active span { color: #eeeeee; }
+.time-workspace .integrated-toolbar-actions .icon-button { background: transparent; border-color: #333333; color: #a3a3a3; }
+.time-workspace .integrated-toolbar-actions .icon-button:hover { background: #252525; color: #eeeeee; }
+
+.app-shell:has(.time-workspace) > .topbar { display: none; }
+.app-shell:has(.time-workspace) { background: #111111; border-color: #282828; }
+.time-workspace { min-height: calc(100dvh - 26px); }
+.time-workspace .integrated-frame-stack { height: calc(100dvh - 76px); min-height: 620px; }
+@media (max-width: 760px) {
+  .time-workspace { min-height: 100dvh; }
+  .time-workspace .integrated-frame-stack { height: calc(100dvh - 50px); min-height: 620px; }
+}

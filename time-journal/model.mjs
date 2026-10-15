@@ -99,7 +99,8 @@ export function distributionSegments(totals) {
   let offset = 0;
   return [...categoryPalette(totals), { id: 'unrecorded', name: '未记录', color: '#303030' }].map(category => {
     const minutes = totals[category.id];
-    const segment = { ...category, minutes, offset, percent: Math.round(minutes / 1440 * 1000) / 10 };
+    const color = category.id === 'work' && minutes > 7 * 60 ? '#5b9bf3' : category.color;
+    const segment = { ...category, color, minutes, offset, percent: Math.round(minutes / 1440 * 1000) / 10 };
     offset += minutes;
     return segment;
   });
