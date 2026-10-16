@@ -25,3 +25,14 @@ Windows 安装包只使用本机存储，不显示或连接云同步服务。数
 ```bash
 npm run dist:win
 ```
+
+
+## 新账号部署
+
+源码仓库：https://github.com/sange0613/project-checkin-dashboard
+
+网页地址：https://sange0613.github.io/project-checkin-dashboard/
+
+当前部署分支为 `codex/project-checkin-web`。在本项目目录修改后提交并执行 `git push`，GitHub Actions 会运行测试、构建并自动发布到上述网址。工作流状态见仓库的 Actions 页面。
+
+原账号的网页与提交历史保留。新网址使用独立的浏览器存储；原来已启用云同步时，在新网页输入原有同步码。仅保存在旧网页本机的数据，可通过 JSON 导出和导入迁移；看板的 JSON 备份不包含内嵌时间记录。
