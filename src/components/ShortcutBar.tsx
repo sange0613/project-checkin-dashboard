@@ -34,8 +34,14 @@ export function shortcutEntries(links: Shortcut[]) {
     ...links.map(link => ({ id: link.href, label: `${link.short} · ${link.label}` })), { id: 'github', label: 'GitHub' },
   ]
 }
+export function migrateAccountUrl(value: string) {
+  return value
+    .replace(/^https?:\/\/sange1022\.github\.io(?=\/|$)/, 'https://sange0613.github.io')
+    .replace(/^https?:\/\/github\.com\/sange1022(?=\/|$)/, 'https://github.com/sange0613')
+}
+
 export function sortShortcuts<T extends { id: string }>(entries: T[], order: string[] = []): T[] {
-  const rank = new Map(order.map((id, index) => [id, index]))
+  const rank = new Map(order.map((id, index) => [migrateAccountUrl(id), index]))
   return [...entries].sort((a, b) => (rank.get(a.id) ?? order.length) - (rank.get(b.id) ?? order.length))
 }
 

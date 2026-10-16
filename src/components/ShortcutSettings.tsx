@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { defaultShortcuts, shortcutEntries, sortShortcuts, type Shortcut } from './ShortcutBar'
+import { defaultShortcuts, migrateAccountUrl, shortcutEntries, sortShortcuts, type Shortcut } from './ShortcutBar'
 
 export function readShortcuts(config?: string[]): Shortcut[] {
   if (!config) return defaultShortcuts
@@ -8,7 +8,7 @@ export function readShortcuts(config?: string[]): Shortcut[] {
       const link = JSON.parse(raw) as Shortcut
       if (typeof link.label !== 'string' || typeof link.short !== 'string' || typeof link.href !== 'string') return []
       if (!['https:', 'http:'].includes(new URL(link.href).protocol)) return []
-      return [link]
+      return [{ ...link, href: migrateAccountUrl(link.href) }]
     } catch { return [] }
   })
 }
