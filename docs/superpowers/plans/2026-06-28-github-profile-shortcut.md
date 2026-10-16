@@ -24,7 +24,7 @@ Add this test after the existing English shortcut test:
 test('opens the GitHub profile shortcut safely in a new tab', () => {
   render(<App />)
   const link = screen.getByRole('link', { name: 'GitHub 主页' })
-  expect(link).toHaveAttribute('href', 'https://github.com/sange1022')
+  expect(link).toHaveAttribute('href', 'https://github.com/sange0613')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
@@ -43,7 +43,7 @@ Add `Github` to the existing `lucide-react` import, then place this anchor after
 ```tsx
 <a
   className="icon-button"
-  href="https://github.com/sange1022"
+  href="https://github.com/sange0613"
   target="_blank"
   rel="noopener noreferrer"
   aria-label="GitHub 主页"
@@ -69,7 +69,7 @@ Open the local app in the in-app browser and confirm:
 
 - The GitHub icon is between “盘” and the theme button.
 - Its accessible name is `GitHub 主页`.
-- Its destination is `https://github.com/sange1022` and opens in a new tab.
+- Its destination is `https://github.com/sange0613` and opens in a new tab.
 - The page has no relevant console errors or framework overlay.
 
 - [ ] **Step 6: Commit and publish**

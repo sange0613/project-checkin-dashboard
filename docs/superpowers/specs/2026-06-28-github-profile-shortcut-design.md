@@ -12,7 +12,7 @@
 
 ## 行为
 
-- 点击后在新标签页打开 `https://github.com/sange1022`。
+- 点击后在新标签页打开 `https://github.com/sange0613`。
 - 链接使用 `noopener noreferrer`，避免新页面访问来源窗口。
 - 无障碍名称和悬停提示均为“GitHub 主页”。
 

@@ -488,4 +488,4 @@ Confirm the Pages workflow for the published commit completes successfully.
 
 - [ ] **Step 4: Verify production**
 
-Open `https://sange1022.github.io/project-checkin-dashboard/`, confirm the bottom cloud panel, anonymous connection, real sync status, existing shortcuts, dark mode, and no console errors.
+Open `https://sange0613.github.io/project-checkin-dashboard/`, confirm the bottom cloud panel, anonymous connection, real sync status, existing shortcuts, dark mode, and no console errors.

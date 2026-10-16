@@ -109,7 +109,7 @@ test('switches between daily weekly and monthly views', async () => {
 test('opens the English copywork shortcut safely in a new tab', () => {
   render(<App />)
   const link = screen.getByRole('link', { name: '英语抄写' })
-  expect(link).toHaveAttribute('href', 'https://sange1022.github.io/english-copywork-trainer/')
+  expect(link).toHaveAttribute('href', 'https://sange0613.github.io/english-copywork-trainer/')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
@@ -117,7 +117,7 @@ test('opens the English copywork shortcut safely in a new tab', () => {
 test('opens the GitHub profile shortcut safely in a new tab', () => {
   render(<App />)
   const link = screen.getByRole('link', { name: 'GitHub 主页' })
-  expect(link).toHaveAttribute('href', 'https://github.com/sange1022')
+  expect(link).toHaveAttribute('href', 'https://github.com/sange0613')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
@@ -134,16 +134,16 @@ test.each([
   ['Learn Buffett', 'https://learnbuffett.com'],
   ['Munger Models', 'https://mungermodels.com'],
   ['GoGoScrum', 'https://gogoscrum.com'],
-  ['公众号编辑器', 'https://sange1022.github.io/xuwu-wechat-editor/'],
-  ['图片拼贴', 'https://sange1022.github.io/xuwu-image-collage/'],
-  ['图片转 PDF', 'https://sange1022.github.io/image-to-pdf-studio/'],
-  ['图片水印', 'https://sange1022.github.io/image-watermark-web/'],
-  ['配色工具', 'https://sange1022.github.io/shise-palette/'],
-  ['平面图制作', 'https://sange1022.github.io/floor-plan-maker/'],
-  ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
-  ['间', 'https://sange1022.github.io/random-planar-composition/'],
-  ['海', 'https://sange1022.github.io/contour-text-studio/?v=5787e7a'],
-  ['词', 'https://sange1022.github.io/english-vocabulary-study/'],
+  ['公众号编辑器', 'https://sange0613.github.io/xuwu-wechat-editor/'],
+  ['图片拼贴', 'https://sange0613.github.io/xuwu-image-collage/'],
+  ['图片转 PDF', 'https://sange0613.github.io/image-to-pdf-studio/'],
+  ['图片水印', 'https://sange0613.github.io/image-watermark-web/'],
+  ['配色工具', 'https://sange0613.github.io/shise-palette/'],
+  ['平面图制作', 'https://sange0613.github.io/floor-plan-maker/'],
+  ['构', 'https://sange0613.github.io/qf-07-9a6c3e21/'],
+  ['间', 'https://sange0613.github.io/random-planar-composition/'],
+  ['海', 'https://sange0613.github.io/contour-text-studio/?v=5787e7a'],
+  ['词', 'https://sange0613.github.io/english-vocabulary-study/'],
 ])('opens the %s shortcut safely in a new tab', async (name, href) => {
   render(<App />)
   let link = screen.queryByRole('link', { name })
@@ -163,14 +163,14 @@ test('opens and switches the integrated daily, checklist, and item cost tools', 
   await user.click(screen.getByRole('button', { name: '每日卡路里' }))
   const tools = screen.getByRole('region', { name: '综合工具' })
   expect(tools).toBeVisible()
-  expect(within(tools).getByTitle('每日卡路里')).toHaveAttribute('src', 'https://sange1022.github.io/daily-calorie-tracker/')
+  expect(within(tools).getByTitle('每日卡路里')).toHaveAttribute('src', 'https://sange0613.github.io/daily-calorie-tracker/')
 
   await user.click(screen.getByRole('button', { name: '清单打卡' }))
-  expect(within(tools).getByTitle('清单打卡')).toHaveAttribute('src', 'https://sange1022.github.io/qingdan-checklist/')
+  expect(within(tools).getByTitle('清单打卡')).toHaveAttribute('src', 'https://sange0613.github.io/qingdan-checklist/')
   expect(within(tools).getByTitle('每日卡路里')).not.toBeVisible()
 
   await user.click(screen.getByRole('button', { name: '物品日均成本' }))
-  expect(within(tools).getByTitle('物品日均成本')).toHaveAttribute('src', 'https://sange1022.github.io/wuwu/')
+  expect(within(tools).getByTitle('物品日均成本')).toHaveAttribute('src', 'https://sange0613.github.io/wuwu/')
   expect(within(tools).getByTitle('清单打卡')).not.toBeVisible()
 
   await user.click(screen.getByRole('button', { name: '关闭综合工具' }))
@@ -196,7 +196,7 @@ test('opens the local time journal inside the dashboard and returns to projects'
 test('opens the layout tool in its original standalone page', () => {
   render(<App />)
   const link = screen.getByRole('link', { name: '字间排版' })
-  expect(link).toHaveAttribute('href', 'https://sange1022.github.io/zijian-text-layout/')
+  expect(link).toHaveAttribute('href', 'https://sange0613.github.io/zijian-text-layout/')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })

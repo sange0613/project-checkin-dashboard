@@ -21,7 +21,7 @@
 Add this case to the existing shortcut table:
 
 ```tsx
-['字间排版', 'https://sange1022.github.io/zijian-text-layout/'],
+['字间排版', 'https://sange0613.github.io/zijian-text-layout/'],
 ```
 
 - [x] **Step 2: Run the focused test to verify it fails**
@@ -35,7 +35,7 @@ Expected: FAIL because no link named `字间排版` exists.
 Place this anchor after “盘” and before the GitHub icon:
 
 ```tsx
-<a className="icon-button shortcut-character" href="https://sange1022.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
+<a className="icon-button shortcut-character" href="https://sange0613.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a>
 ```
 
 - [x] **Step 4: Run all verification**

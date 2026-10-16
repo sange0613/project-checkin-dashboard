@@ -12,7 +12,7 @@
 
 ## 行为
 
-- 点击后在新标签页打开 `https://sange1022.github.io/zijian-text-layout/`。
+- 点击后在新标签页打开 `https://sange0613.github.io/zijian-text-layout/`。
 - 使用 `noopener noreferrer` 保持外链安全。
 - 无障碍名称和悬停提示均为“字间排版”。
 
