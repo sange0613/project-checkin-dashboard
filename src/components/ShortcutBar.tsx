@@ -5,7 +5,7 @@ type IntegratedToolId = 'daily' | 'checklist' | 'wuwu' | 'time'
 
 export type Shortcut = { label: string; short: string; href: string; icon?: string; menuName?: string; hidden?: boolean; pinned?: boolean }
 export const defaultShortcuts: Shortcut[] = [
-  { label: '英语抄写', short: '抄', href: 'https://sange0613.github.io/english-copywork-trainer/', icon: 'book' },
+  { label: '英语抄写', short: '抄', href: 'https://sange1022.github.io/english-copywork-trainer/', icon: 'book' },
   { label: 'Learn Buffett', short: '巴', href: 'https://learnbuffett.com' },
   { label: 'Munger Models', short: '芒', href: 'https://mungermodels.com' },
   { label: 'GoGoScrum', short: '项', href: 'https://gogoscrum.com' },
@@ -15,9 +15,9 @@ export const defaultShortcuts: Shortcut[] = [
   { label: '图片水印', short: '水', href: 'https://sange0613.github.io/image-watermark-web/' },
   { label: '配色工具', short: '色', href: 'https://sange0613.github.io/shise-palette/' },
   { label: '平面图制作', short: '彩', href: 'https://sange0613.github.io/floor-plan-maker/' },
-  { label: '构', menuName: '构图工具', short: '构', href: 'https://sange0613.github.io/qf-07-9a6c3e21/' },
-  { label: '间', menuName: '随机平面构成', short: '间', href: 'https://sange0613.github.io/random-planar-composition/' },
-  { label: '海', menuName: '轮廓文字', short: '海', href: 'https://sange0613.github.io/contour-text-studio/?v=5787e7a' },
+  { label: '构', menuName: '构图工具', short: '构', href: 'https://sange1022.github.io/qf-07-9a6c3e21/' },
+  { label: '间', menuName: '随机平面构成', short: '间', href: 'https://sange1022.github.io/random-planar-composition/' },
+  { label: '海', menuName: '轮廓文字', short: '海', href: 'https://sange1022.github.io/contour-text-studio/?v=5787e7a' },
 ]
 
 type Props = {
@@ -34,10 +34,21 @@ export function shortcutEntries(links: Shortcut[]) {
     ...links.map(link => ({ id: link.href, label: `${link.short} · ${link.label}` })), { id: 'github', label: 'GitHub' },
   ]
 }
+const migratedSiteNames = new Set(["xuwu-wechat-editor", "xuwu-image-collage", "image-watermark-web", "floor-plan-maker", "shise-palette", "zijian-text-layout", "wuwu", "lightpress-web", "image-to-pdf-studio", "qingdan-checklist", "daily-calorie-tracker", "project-checkin-dashboard"])
+
 export function migrateAccountUrl(value: string) {
-  return value
-    .replace(/^https?:\/\/sange1022\.github\.io(?=\/|$)/, 'https://sange0613.github.io')
-    .replace(/^https?:\/\/github\.com\/sange1022(?=\/|$)/, 'https://github.com/sange0613')
+  try {
+    const url = new URL(value)
+    if (['https:', 'http:'].includes(url.protocol) && !url.port &&
+        ['sange1022.github.io', 'sange0613.github.io'].includes(url.hostname)) {
+      const repository = url.pathname.split('/')[1]
+      if (!repository) return value
+      url.protocol = 'https:'
+      url.hostname = migratedSiteNames.has(repository) ? 'sange0613.github.io' : 'sange1022.github.io'
+      return url.href
+    }
+  } catch { /* Shortcut ordering also contains non-URL identifiers. */ }
+  return value.replace(/^https?:\/\/github\.com\/sange1022(?=\/|$)/, 'https://github.com/sange0613')
 }
 
 export function sortShortcuts<T extends { id: string }>(entries: T[], order: string[] = []): T[] {
@@ -50,7 +61,7 @@ export function ShortcutBar({ onOpenIntegratedTool, links: secondaryLinks = defa
   const primary = [
     ...(['daily', 'checklist', 'wuwu', 'time'] as const).map((id, i) => ({ id, node: <button type="button" className="icon-button shortcut-character" aria-label={['每日卡路里', '清单打卡', '物品日均成本', '时间记录'][i]} title={['每日卡路里', '清单打卡', '物品日均成本', '时间记录'][i]} onClick={() => onOpenIntegratedTool(id)}>{['饮', '清', '物', '时'][i]}</button> })),
     { id: 'text', node: <a className="icon-button shortcut-character" href="https://sange0613.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a> },
-    { id: 'vocabulary', node: <a className="icon-button shortcut-character vocabulary-shortcut" href="https://sange0613.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="英语词汇学习">词</a> },
+    { id: 'vocabulary', node: <a className="icon-button shortcut-character vocabulary-shortcut" href="https://sange1022.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="英语词汇学习">词</a> },
     ...secondaryLinks.filter((link, index) => !link.hidden && (link.pinned ?? index < 4)).map(link => ({ id: link.href, node: <span className="desktop-shortcuts"><a className="icon-button shortcut-character" href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label} title={link.label}>{link.icon === 'book' ? <BookOpen size={17} /> : link.short}</a></span> })),
     { id: 'github', node: <span className="desktop-shortcuts"><a className="icon-button" href="https://github.com/sange0613" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页"><Github size={17} /></a></span> },
   ]

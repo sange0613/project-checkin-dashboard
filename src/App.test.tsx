@@ -109,7 +109,7 @@ test('switches between daily weekly and monthly views', async () => {
 test('opens the English copywork shortcut safely in a new tab', () => {
   render(<App />)
   const link = screen.getByRole('link', { name: '英语抄写' })
-  expect(link).toHaveAttribute('href', 'https://sange0613.github.io/english-copywork-trainer/')
+  expect(link).toHaveAttribute('href', 'https://sange1022.github.io/english-copywork-trainer/')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
@@ -140,10 +140,10 @@ test.each([
   ['图片水印', 'https://sange0613.github.io/image-watermark-web/'],
   ['配色工具', 'https://sange0613.github.io/shise-palette/'],
   ['平面图制作', 'https://sange0613.github.io/floor-plan-maker/'],
-  ['构', 'https://sange0613.github.io/qf-07-9a6c3e21/'],
-  ['间', 'https://sange0613.github.io/random-planar-composition/'],
-  ['海', 'https://sange0613.github.io/contour-text-studio/?v=5787e7a'],
-  ['词', 'https://sange0613.github.io/english-vocabulary-study/'],
+  ['构', 'https://sange1022.github.io/qf-07-9a6c3e21/'],
+  ['间', 'https://sange1022.github.io/random-planar-composition/'],
+  ['海', 'https://sange1022.github.io/contour-text-studio/?v=5787e7a'],
+  ['词', 'https://sange1022.github.io/english-vocabulary-study/'],
 ])('opens the %s shortcut safely in a new tab', async (name, href) => {
   render(<App />)
   let link = screen.queryByRole('link', { name })
