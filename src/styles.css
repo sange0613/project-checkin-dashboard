@@ -40,6 +40,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .shortcut-popover a:hover { background: #f2f2ef; }
 .shortcut-popover a span { width: 18px; text-align: center; font-weight: 700; }
 .integrated-workspace { min-height: calc(100vh - 105px); background: var(--theme-surface); }
+.integrated-template-sync { margin: 0; padding: 7px 16px; font-size: 12px; color: var(--theme-muted, #6e6e73); border-bottom: 1px solid var(--theme-border, #e5e5e5); }
 .integrated-toolbar { min-height: 49px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 7px 28px; border-bottom: 1px solid #ecece7; }
 .integrated-tabs { display: flex; align-items: center; gap: 5px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .integrated-tabs::-webkit-scrollbar { display: none; }

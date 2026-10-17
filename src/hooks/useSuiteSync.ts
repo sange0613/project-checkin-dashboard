@@ -44,6 +44,7 @@ const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   checklist: 'qingdan-app-state-v2',
   wuwu: 'daily-cost-items-v2',
   time: 'time-noticed.v1',
+  text: 'zijian-layout-library-sync-v1',
 }
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>
@@ -118,6 +119,14 @@ function getDeviceId(): string {
 }
 
 function readToolValue(id: Exclude<SuiteAppId, 'dashboard'>): unknown | undefined {
+  if (id === 'text' && !localStorage.getItem(TOOL_STORAGE_KEYS.text)) {
+    const records = parseJson(localStorage.getItem('zijian-saved-layout-records-v1'))
+    if (Array.isArray(records) && records.length) {
+      const value = { version: 1, entries: records.map(record => ({ id: record.id, record, updatedAt: record.savedAt ?? 0, updatedBy: 'legacy-zijian' })) }
+      localStorage.setItem(TOOL_STORAGE_KEYS.text, JSON.stringify(value))
+      return value
+    }
+  }
   return parseJson(localStorage.getItem(TOOL_STORAGE_KEYS[id]))
 }
 

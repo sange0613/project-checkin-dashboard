@@ -35,6 +35,7 @@ const integratedTools = [
   { id: 'checklist', label: '清', name: '清单打卡', url: 'https://sange0613.github.io/qingdan-checklist/' },
   { id: 'wuwu', label: '物', name: '物品日均成本', url: 'https://sange0613.github.io/wuwu/' },
   { id: 'time', label: '时', name: '时间记录', url: `${import.meta.env.BASE_URL}time-journal/index.html?v=${import.meta.env.VITE_JOURNAL_VERSION}` },
+  { id: 'text', label: '字', name: '字间排版', url: 'https://sange0613.github.io/zijian-text-layout/records/?suite=1' },
 ] as const
 
 type IntegratedToolId = typeof integratedTools[number]['id']
@@ -43,11 +44,12 @@ type IntegratedToolWorkspaceProps = {
   activeToolId: IntegratedToolId
   loadedToolIds: IntegratedToolId[]
   dataRevision: number
+  syncMessage: string
   onSelect: (toolId: IntegratedToolId) => void
   onClose: () => void
 }
 
-function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, onSelect, onClose }: IntegratedToolWorkspaceProps) {
+function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, syncMessage, onSelect, onClose }: IntegratedToolWorkspaceProps) {
   const activeTool = integratedTools.find((tool) => tool.id === activeToolId) ?? integratedTools[0]
   const activeTabRef = useRef<HTMLButtonElement>(null)
   const standaloneJournal = useMemo(() => {
@@ -63,6 +65,7 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, on
 
   return (
     <section className={`integrated-workspace${activeToolId === 'time' ? ' time-workspace' : ''}`} aria-label="综合工具">
+      {activeToolId === 'text' ? <p className="integrated-template-sync" role="status">模板库 · {syncMessage}</p> : null}
       <header className="integrated-toolbar">
         <nav className="integrated-tabs" aria-label="综合工具切换">
           {integratedTools.map((tool) => (
@@ -372,6 +375,7 @@ export default function App() {
           activeToolId={activeToolId}
           loadedToolIds={loadedToolIds}
           dataRevision={suiteSync.toolDataRevision}
+          syncMessage={suiteSync.connectedCode ? syncSummary : '返回项目页，连接原同步码后即可自动同步模板'}
           onSelect={openIntegratedTool}
           onClose={() => setActiveToolId(null)}
         />

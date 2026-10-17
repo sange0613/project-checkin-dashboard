@@ -193,12 +193,11 @@ test('opens the local time journal inside the dashboard and returns to projects'
   expect(within(screen.getByRole('region', { name: '综合工具' })).getByTitle('时间记录')).toHaveAttribute('src', `${import.meta.env.BASE_URL}time-journal/index.html?v=${import.meta.env.VITE_JOURNAL_VERSION}`)
 })
 
-test('opens the layout tool in its original standalone page', () => {
+test('opens the layout tool inside the integrated workspace for suite synchronization', async () => {
+  const user = userEvent.setup()
   render(<App />)
-  const link = screen.getByRole('link', { name: '字间排版' })
-  expect(link).toHaveAttribute('href', 'https://sange0613.github.io/zijian-text-layout/')
-  expect(link).toHaveAttribute('target', '_blank')
-  expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  await user.click(screen.getByRole('button', { name: '字间排版' }))
+  expect(within(screen.getByRole('region', { name: '综合工具' })).getByTitle('字间排版')).toHaveAttribute('src', 'https://sange0613.github.io/zijian-text-layout/records/?suite=1')
 })
 
 test('opens the packaged time journal from the standalone document without separate files', async () => {

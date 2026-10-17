@@ -4,6 +4,14 @@ import { createInitialState, type SyncState } from '../domain/types'
 import { cleanSyncCode, mergeSuiteStates, normalizeSuiteState } from './suiteSyncModel'
 
 describe('suite sync model', () => {
+  it('merges template libraries per record and preserves newer deletion markers', () => {
+    const entry = (id: string, updatedAt: number, deleted = false) => ({ id, updatedAt, updatedBy: 'device', deleted, record: { id, name: id } })
+    const local = { apps: { text: { value: { version: 1, entries: [entry('one', 10), entry('removed', 30, true)] }, updatedAt: 30, updatedBy: 'a' } } }
+    const remote = { apps: { text: { value: { version: 1, entries: [entry('two', 40), entry('removed', 20)] }, updatedAt: 40, updatedBy: 'b' } } }
+    const merged = mergeSuiteStates(local, remote).apps.text?.value as { entries: { id: string; deleted: boolean }[] }
+    expect(merged.entries.map(entry => entry.id).sort()).toEqual(['one', 'removed', 'two'])
+    expect(merged.entries.find(entry => entry.id === 'removed')?.deleted).toBe(true)
+  })
   it('merges time journal history by date instead of replacing the entire history', () => {
     const block = { id: 'one', start: 540, end: 600, category: 'work', title: '' }
     const merged = mergeSuiteStates(

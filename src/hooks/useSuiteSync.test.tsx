@@ -37,6 +37,24 @@ beforeEach(() => {
   firestoreMock.runTransaction.mockReset()
 })
 
+test('synchronizes local and remote layout templates using the existing suite document', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'LAYOUTSYNCQA12')
+  localStorage.setItem('zijian-layout-library-sync-v1', JSON.stringify({ version: 1, entries: [{ id: 'local', record: { id: 'local' }, updatedAt: 10, updatedBy: 'a' }] }))
+  const writes: unknown[] = []
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({
+    get: async () => ({ exists: () => true, data: () => ({ suite: { apps: { text: { value: { version: 1, entries: [{ id: 'remote', record: { id: 'remote' }, updatedAt: 20, updatedBy: 'b' }] }, updatedAt: 20, updatedBy: 'b' } } } }) }),
+    set: (_document: unknown, value: unknown) => writes.push(value),
+  }))
+  const { result, unmount } = renderHook(() => {
+    const [state, setState] = useState(createInitialState())
+    return useSuiteSync(state, setState)
+  })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  expect(JSON.parse(localStorage.getItem('zijian-layout-library-sync-v1')!).entries.map((entry: { id: string }) => entry.id).sort()).toEqual(['local', 'remote'])
+  expect(writes).toHaveLength(1)
+  unmount()
+})
+
 test('uploads existing time history and receives other dates with the original suite code', async () => {
   const block = { id: 'local', start: 0, end: 60, category: 'work', title: '' }
   const remote = { id: 'remote', start: 0, end: 120, category: 'rest', title: '' }

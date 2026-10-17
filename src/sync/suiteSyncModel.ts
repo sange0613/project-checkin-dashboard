@@ -2,7 +2,7 @@ import { createSyncStateFromAppState, mergeSyncStates, normalizeSyncState } from
 import type { AppState, SyncState, VersionStamp } from '../domain/types'
 import { mergeTimeJournals, normalizeTimeJournal } from './timeJournalSync'
 
-export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist', 'wuwu', 'time'] as const
+export const SUITE_APP_IDS = ['dashboard', 'daily', 'checklist', 'wuwu', 'time', 'text'] as const
 
 export type SuiteAppId = typeof SUITE_APP_IDS[number]
 
@@ -213,6 +213,7 @@ function mergeAppPayload(id: SuiteAppId, left: VersionedPayload, right: Versione
   else if (id === 'daily') value = mergeDaily(latest.value, older.value)
   else if (id === 'checklist') value = mergeChecklist(latest.value, older.value)
   else if (id === 'time') value = mergeTimeJournals(latest.value, older.value)
+  else if (id === 'text') value = { version: 1, entries: mergeStampedById(record(latest.value).entries, record(older.value).entries) }
   return { ...latest, value }
 }
 

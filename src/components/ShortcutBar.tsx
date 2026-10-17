@@ -1,7 +1,7 @@
 import { BookOpen, Github, MoreHorizontal } from 'lucide-react'
 import { Fragment, useState } from 'react'
 
-type IntegratedToolId = 'daily' | 'checklist' | 'wuwu' | 'time'
+type IntegratedToolId = 'daily' | 'checklist' | 'wuwu' | 'time' | 'text'
 
 export type Shortcut = { label: string; short: string; href: string; icon?: string; menuName?: string; hidden?: boolean; pinned?: boolean }
 export const defaultShortcuts: Shortcut[] = [
@@ -60,7 +60,7 @@ export function ShortcutBar({ onOpenIntegratedTool, links: secondaryLinks = defa
   const [moreOpen, setMoreOpen] = useState(false)
   const primary = [
     ...(['daily', 'checklist', 'wuwu', 'time'] as const).map((id, i) => ({ id, node: <button type="button" className="icon-button shortcut-character" aria-label={['每日卡路里', '清单打卡', '物品日均成本', '时间记录'][i]} title={['每日卡路里', '清单打卡', '物品日均成本', '时间记录'][i]} onClick={() => onOpenIntegratedTool(id)}>{['饮', '清', '物', '时'][i]}</button> })),
-    { id: 'text', node: <a className="icon-button shortcut-character" href="https://sange0613.github.io/zijian-text-layout/" target="_blank" rel="noopener noreferrer" aria-label="字间排版" title="字间排版">字</a> },
+    { id: 'text', node: <button type="button" className="icon-button shortcut-character" aria-label="字间排版" title="字间排版 · 模板随同步码同步" onClick={() => onOpenIntegratedTool('text')}>字</button> },
     { id: 'vocabulary', node: <a className="icon-button shortcut-character vocabulary-shortcut" href="https://sange1022.github.io/english-vocabulary-study/" target="_blank" rel="noopener noreferrer" aria-label="词" title="英语词汇学习">词</a> },
     ...secondaryLinks.filter((link, index) => !link.hidden && (link.pinned ?? index < 4)).map(link => ({ id: link.href, node: <span className="desktop-shortcuts"><a className="icon-button shortcut-character" href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label} title={link.label}>{link.icon === 'book' ? <BookOpen size={17} /> : link.short}</a></span> })),
     { id: 'github', node: <span className="desktop-shortcuts"><a className="icon-button" href="https://github.com/sange0613" target="_blank" rel="noopener noreferrer" aria-label="GitHub 主页" title="GitHub 主页"><Github size={17} /></a></span> },
