@@ -126,8 +126,8 @@ test('places the synced tools first with daily at the front', () => {
   render(<App />)
   const actions = document.querySelector('.top-actions')
   expect(actions).not.toBeNull()
-  expect(Array.from(actions?.children ?? []).slice(0, 5).map((item) => item.getAttribute('aria-label')))
-    .toEqual(['每日卡路里', '清单打卡', '物品日均成本', '时间记录', '字间排版'])
+  expect(Array.from(actions?.children ?? []).slice(0, 6).map((item) => item.getAttribute('aria-label')))
+    .toEqual(['每日卡路里', '清单打卡', '物品日均成本', '时间记录', '待办看板', '字间排版'])
 })
 
 test.each([
@@ -262,7 +262,7 @@ test('keeps sync settings collapsed until requested', async () => {
   const sync = screen.getByRole('region', { name: '数据同步' })
   expect(within(sync).queryByRole('textbox', { name: '同步码' })).not.toBeInTheDocument()
   await user.click(within(sync).getByRole('button', { name: '展开同步设置' }))
-  expect(within(sync).getByText('项目、饮食、清单、物品与时间记录')).toBeVisible()
+  expect(within(sync).getByText('项目、饮食、清单、物品、时间记录、模板与待办')).toBeVisible()
   expect(within(sync).getByRole('textbox', { name: '同步码' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '连接' })).toBeVisible()
   expect(within(sync).getByRole('button', { name: '新建同步码' })).toBeVisible()

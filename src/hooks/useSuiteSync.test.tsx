@@ -5,6 +5,7 @@ import { createInitialState, type AppState } from '../domain/types'
 import { useSuiteSync } from './useSuiteSync'
 import { createSyncStateFromAppState } from '../domain/cloudSync'
 import { normalizeTimeJournal, type TimeJournal } from '../sync/timeJournalSync'
+import { normalizeTodoSync, todoWorkspace, TODO_SYNC_KEY } from '../sync/todoSync'
 
 const firestoreMock = vi.hoisted(() => ({
   runTransaction: vi.fn(),
@@ -35,6 +36,23 @@ vi.mock('firebase/firestore', () => {
 beforeEach(() => {
   localStorage.clear()
   firestoreMock.runTransaction.mockReset()
+})
+
+test('merges todo data into the shared code and keeps other app payloads', async () => {
+  const workspace = (id: string) => ({ boards: [{ id, name: id, columns: [{ id: 'todo', label: '待办' }], tasks: [{ id, title: id, notes: '', due: '', status: 'todo' }] }], activeBoardId: id })
+  localStorage.setItem('project-suite-sync-code-v1', 'TODOSYNCQA123')
+  localStorage.setItem(TODO_SYNC_KEY, JSON.stringify(normalizeTodoSync(workspace('local'))))
+  const writes: any[] = []
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({
+    get: async () => ({ exists: () => true, data: () => ({ suite: { version: 1, apps: { todo: { value: normalizeTodoSync(workspace('remote')), updatedAt: 1, updatedBy: 'b' }, text: { value: { version: 1, entries: [{ id: 'template' }] }, updatedAt: 1, updatedBy: 'b' } } } }) }),
+    set: (_document: unknown, value: unknown) => writes.push(value),
+  }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  const imported = todoWorkspace(JSON.parse(localStorage.getItem(TODO_SYNC_KEY)!))
+  expect(imported.boards.map(board => board.id).sort()).toEqual(['local', 'remote'])
+  expect(writes[0].suite.apps.text.value.entries[0].id).toBe('template')
+  unmount()
 })
 
 test('synchronizes local and remote layout templates using the existing suite document', async () => {

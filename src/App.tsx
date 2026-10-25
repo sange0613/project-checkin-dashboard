@@ -25,6 +25,7 @@ import { toDateKey } from './domain/dateRanges'
 import { exportState, importState } from './storage/dataTransfer'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
 import { useSuiteSync } from '@app-sync'
+import { useTodoBridge } from './hooks/useTodoBridge'
 import './styles.css'
 
 const repository = createLocalCheckinRepository(window.localStorage)
@@ -36,6 +37,7 @@ const integratedTools = [
   { id: 'wuwu', label: '物', name: '物品日均成本', url: 'https://sange0613.github.io/wuwu/' },
   { id: 'time', label: '时', name: '时间记录', url: `${import.meta.env.BASE_URL}time-journal/index.html?v=${import.meta.env.VITE_JOURNAL_VERSION}` },
   { id: 'text', label: '字', name: '字间排版', url: 'https://sange0613.github.io/zijian-text-layout/records/?suite=1' },
+  { id: 'todo', label: '待', name: '待办看板', url: 'https://sange0613.github.io/todolist/?suite=1' },
 ] as const
 
 type IntegratedToolId = typeof integratedTools[number]['id']
@@ -65,7 +67,7 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, sy
 
   return (
     <section className={`integrated-workspace${activeToolId === 'time' ? ' time-workspace' : ''}`} aria-label="综合工具">
-      {activeToolId === 'text' ? <p className="integrated-template-sync" role="status">模板库 · {syncMessage}</p> : null}
+      {activeToolId === 'text' || activeToolId === 'todo' ? <p className="integrated-template-sync" role="status">{activeToolId === 'todo' ? '待办看板' : '模板库'} · {syncMessage}</p> : null}
       <header className="integrated-toolbar">
         <nav className="integrated-tabs" aria-label="综合工具切换">
           {integratedTools.map((tool) => (
@@ -140,6 +142,7 @@ export default function App() {
   const [loadedToolIds, setLoadedToolIds] = useState<IntegratedToolId[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
   const suiteSync = useSuiteSync(state, setState)
+  useTodoBridge(suiteSync.toolDataRevision, suiteSync.message)
   const currentDay = toDateKey(new Date(clock))
   const today = useMemo(() => new Date(`${currentDay}T12:00:00`), [currentDay])
   const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false

@@ -39,7 +39,10 @@ self.addEventListener('fetch', event => {
       input: {
         dashboard: fileURLToPath(new URL('./index.html', import.meta.url)),
         timeJournal: fileURLToPath(new URL('./time-journal/index.html', import.meta.url)),
+        todoSync: fileURLToPath(new URL('./src/sync/todoClient.ts', import.meta.url)),
       },
+      preserveEntrySignatures: 'strict',
+      output: { entryFileNames: chunk => chunk.name === 'todoSync' ? 'todo-sync/entry.js' : 'assets/[name]-[hash].js' },
     },
   },
   resolve: {

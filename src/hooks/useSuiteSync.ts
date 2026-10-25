@@ -45,6 +45,7 @@ const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
   wuwu: 'daily-cost-items-v2',
   time: 'time-noticed.v1',
   text: 'zijian-layout-library-sync-v1',
+  todo: 'liubai-suite-sync-v1',
 }
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>
