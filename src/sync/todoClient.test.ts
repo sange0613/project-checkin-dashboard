@@ -4,6 +4,10 @@ import { type TodoWorkspace } from './todoSync'
 const mocked = vi.hoisted(() => ({ transaction: vi.fn(), writes: vi.fn(), firestore: vi.fn() }))
 vi.mock('firebase/app', () => ({ getApps: () => [], getApp: () => ({}), initializeApp: () => ({}) }))
 vi.mock('firebase/auth', () => ({ getAuth: () => ({ currentUser: {} }), signInAnonymously: vi.fn() }))
+vi.mock('./suiteSyncModel', async importOriginal => ({
+  ...await importOriginal<typeof import('./suiteSyncModel')>(),
+  deriveSuiteDocumentId: async (code: string) => code,
+}))
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, _collection: string, id: string) => ({ id }), getFirestore: mocked.firestore,
   serverTimestamp: () => 0, onSnapshot: () => vi.fn(), runTransaction: mocked.transaction,
@@ -49,8 +53,7 @@ test('uploads a newer edit even when its debounce fired during a slow request', 
   })
   const instance = adapter()
   const started = startTodoSync(instance.api)
-  for (let i = 0; i < 30; i++) await vi.advanceTimersByTimeAsync(0)
-  expect(mocked.transaction).toHaveBeenCalledTimes(1)
+  await vi.waitFor(() => expect(mocked.transaction).toHaveBeenCalledTimes(1))
   instance.change()
   await vi.advanceTimersByTimeAsync(3000)
   expect(mocked.transaction).toHaveBeenCalledTimes(1)
