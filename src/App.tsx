@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Moon, Plus, Search, Sun, Upload, X } from 'lucide-react'
 import { EditableText } from './components/EditableText'
 import { ProjectDialog } from './components/ProjectDialog'
@@ -47,11 +47,12 @@ type IntegratedToolWorkspaceProps = {
   loadedToolIds: IntegratedToolId[]
   dataRevision: number
   syncMessage: string
+  syncControls?: ReactNode
   onSelect: (toolId: IntegratedToolId) => void
   onClose: () => void
 }
 
-function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, syncMessage, onSelect, onClose }: IntegratedToolWorkspaceProps) {
+function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, syncMessage, syncControls, onSelect, onClose }: IntegratedToolWorkspaceProps) {
   const activeTool = integratedTools.find((tool) => tool.id === activeToolId) ?? integratedTools[0]
   const activeTabRef = useRef<HTMLButtonElement>(null)
   const standaloneJournal = useMemo(() => {
@@ -67,7 +68,8 @@ function IntegratedToolWorkspace({ activeToolId, loadedToolIds, dataRevision, sy
 
   return (
     <section className={`integrated-workspace${activeToolId === 'time' ? ' time-workspace' : ''}`} aria-label="综合工具">
-      {activeToolId === 'text' || activeToolId === 'todo' ? <p className="integrated-template-sync" role="status">{activeToolId === 'todo' ? '待办看板' : '模板库'} · {syncMessage}</p> : null}
+      {activeToolId === 'text' ? <p className="integrated-template-sync" role="status">模板库 · {syncMessage}</p> : null}
+      {activeToolId === 'todo' ? <div className="integrated-sync-settings">{syncControls}</div> : null}
       <header className="integrated-toolbar">
         <nav className="integrated-tabs" aria-label="综合工具切换">
           {integratedTools.map((tool) => (
@@ -378,7 +380,13 @@ export default function App() {
           activeToolId={activeToolId}
           loadedToolIds={loadedToolIds}
           dataRevision={suiteSync.toolDataRevision}
-          syncMessage={suiteSync.connectedCode ? syncSummary : '返回项目页，连接原同步码后即可自动同步模板'}
+          syncMessage={suiteSync.connectedCode ? syncSummary : '请连接原同步码，即可自动同步'}
+          syncControls={!desktopLocalOnly ? <SuiteSyncPanel
+            code={suiteSync.codeInput} connected={Boolean(suiteSync.connectedCode)}
+            status={suiteSync.status} message={suiteSync.message} lastSyncedAt={suiteSync.lastSyncedAt}
+            onCodeChange={suiteSync.setCodeInput} onConnect={() => suiteSync.connect()}
+            onCreate={suiteSync.createAndConnect} onDisconnect={suiteSync.disconnect}
+          /> : <p className="integrated-template-sync">待办看板 · 仅保存在当前设备</p>}
           onSelect={openIntegratedTool}
           onClose={() => setActiveToolId(null)}
         />

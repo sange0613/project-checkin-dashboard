@@ -55,6 +55,20 @@ test('merges todo data into the shared code and keeps other app payloads', async
   unmount()
 })
 
+test('preserves cloud data belonging to a newer app version', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'FORWARDCOMPAT123')
+  const future = { value: { records: ['keep'] }, updatedAt: 10, updatedBy: 'newer' }
+  const writes: any[] = []
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({
+    get: async () => ({ exists: () => true, data: () => ({ suite: { version: 1, apps: { future } } }) }),
+    set: (_document: unknown, value: unknown) => writes.push(value),
+  }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  expect(writes[0].suite.apps.future).toEqual(future)
+  unmount()
+})
+
 test('synchronizes local and remote layout templates using the existing suite document', async () => {
   localStorage.setItem('project-suite-sync-code-v1', 'LAYOUTSYNCQA12')
   localStorage.setItem('zijian-layout-library-sync-v1', JSON.stringify({ version: 1, entries: [{ id: 'local', record: { id: 'local' }, updatedAt: 10, updatedBy: 'a' }] }))

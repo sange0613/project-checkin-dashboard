@@ -18,6 +18,13 @@ export type SuiteSyncState = {
   apps: Partial<Record<SuiteAppId, VersionedPayload>>
 }
 
+// Keep branches created by another app version when saving the shared document.
+export function preserveSuiteApps(suite: SuiteSyncState, previous: unknown): SuiteSyncState {
+  const source = isRecord(previous) ? previous : {}
+  const apps = isRecord(source.apps) ? source.apps : {}
+  return { ...source, ...suite, apps: { ...apps, ...suite.apps } }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }

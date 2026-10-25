@@ -31,6 +31,7 @@ export async function startTodoSync(api: Adapter) {
   const seeded = normalizeTodoSync(api.seed())
   sync = mergeTodoSync(sync, seeded)
   let revision = 0, uploading = false, needsPush = false, generation = 0
+  let retryDelay = 5000
   let timer: ReturnType<typeof setTimeout> | undefined
   let unsubscribe: (() => void) | undefined
   let session: { db: import('firebase/firestore').Firestore; document: import('firebase/firestore').DocumentReference } | undefined
@@ -47,16 +48,17 @@ export async function startTodoSync(api: Adapter) {
     visible = api.read()
   }
   const payload = () => parent.postMessage({ type: PREFIX + 'change', value: sync }, parentOrigin!)
-  const schedule = () => {
+  const schedule = (delay = 2500) => {
     if (parentOrigin) { payload(); api.status('有修改待同步'); return }
     if (!session) { api.status('已保存在本机 · 输入同步码后自动同步'); return }
     needsPush = true
     if (timer) clearTimeout(timer)
     api.status(navigator.onLine ? '有修改待上传' : '离线 · 已保存在本机')
-    timer = setTimeout(() => void push(), 2500)
+    timer = setTimeout(() => { timer = undefined; void push() }, delay)
   }
   const push = async () => {
-    if (!session || uploading) return
+    if (!session) return
+    if (uploading) { needsPush = true; return }
     const token = generation, active = session, currentRevision = revision
     uploading = true; needsPush = false
     api.status('正在同步')
@@ -74,19 +76,23 @@ export async function startTodoSync(api: Adapter) {
       })
       if (token !== generation) return
       sync = mergeTodoSync(sync, merged); save(); paint()
-      if (revision !== currentRevision) needsPush = true
+      retryDelay = 5000
+      needsPush = revision !== currentRevision || JSON.stringify(sync.fields) !== JSON.stringify(merged.fields)
       api.status(needsPush ? '有修改待上传' : '已同步')
     } catch {
-      if (token === generation) { needsPush = true; api.status(navigator.onLine ? '同步失败 · 可点击重新连接' : '离线 · 已保存在本机') }
+      if (token === generation) { needsPush = true; retryDelay = Math.min(retryDelay * 2, 60000); api.status(navigator.onLine ? '同步失败 · 正在自动重试' : '离线 · 已保存在本机') }
     } finally {
       uploading = false
-      if (token === generation && needsPush && revision !== currentRevision) schedule()
+      if (session && needsPush && navigator.onLine) schedule(retryDelay)
     }
   }
   api.subscribe(() => {
     const next = api.read()
-    sync = reconcileTodoSync(mergeTodoSync(sync, readSync()), visible, next, { updatedAt: Math.max(Date.now(), latestTodoTimestamp(sync) + 1), updatedBy: device })
+    const base = mergeTodoSync(sync, readSync())
+    const changed = normalizeTodoSync(reconcileTodoSync(base, visible, next, { updatedAt: Math.max(Date.now(), latestTodoTimestamp(sync) + 1), updatedBy: device }))
     visible = next
+    if (JSON.stringify(changed.fields) === JSON.stringify(base.fields)) { sync = base; paint(); return }
+    sync = changed
     revision++; save(); paint(); schedule()
   })
   // Apply delayed remote updates after editing closes, without resetting a draft.
@@ -96,7 +102,10 @@ export async function startTodoSync(api: Adapter) {
     if (event.key === TODO_SYNC_KEY) { sync = mergeTodoSync(sync, readSync()); paint() }
     if (event.key === CODE_KEY && !parentOrigin) void connect(event.newValue ?? '')
   })
-  window.addEventListener('online', () => { if (needsPush) schedule() })
+  window.addEventListener('online', () => {
+    if (!parentOrigin && !session && localStorage.getItem(CODE_KEY)) void connect(localStorage.getItem(CODE_KEY)!)
+    else if (needsPush) schedule()
+  })
   if (parentOrigin) {
     window.addEventListener('message', event => {
       if (event.source !== parent || event.origin !== parentOrigin || event.data?.type !== PREFIX + 'state') return
@@ -118,10 +127,21 @@ export async function startTodoSync(api: Adapter) {
   document.head.append(style); document.body.append(panel)
   const input = panel.querySelector('input')!
   input.value = localStorage.getItem(CODE_KEY) ?? ''
+  const connectionFailed = (token: number, code: string) => {
+    if (token !== generation) return
+    session = undefined; unsubscribe?.(); unsubscribe = undefined
+    needsPush = true
+    retryDelay = Math.min(retryDelay * 2, 60000)
+    api.status(navigator.onLine ? '连接中断 · 正在自动重试' : '离线 · 已保存在本机')
+    if (timer) clearTimeout(timer)
+    if (navigator.onLine) timer = setTimeout(() => { timer = undefined; void connect(code) }, retryDelay)
+  }
   async function connect(raw: string) {
     const code = cleanSyncCode(raw)
     generation++; unsubscribe?.(); unsubscribe = undefined; session = undefined
     if (timer) clearTimeout(timer)
+    timer = undefined
+    needsPush = false
     if (!code) { api.status('已保存在本机'); return }
     if (code.length < 12) { api.status('同步码至少需要 12 位'); return }
     localStorage.setItem(CODE_KEY, code); input.value = code
@@ -143,9 +163,9 @@ export async function startTodoSync(api: Adapter) {
         sync = mergeTodoSync(sync, remote); save(); paint()
         if (JSON.stringify(sync.fields) !== JSON.stringify(remote.fields)) schedule()
         else if (!uploading && !needsPush) api.status('已同步')
-      }, () => { if (token === generation) api.status('连接中断 · 点击重新连接') })
+      }, () => connectionFailed(token, code))
       await push()
-    } catch { if (token === generation) api.status(navigator.onLine ? '连接失败 · 点击重新连接' : '离线 · 已保存在本机') }
+    } catch { connectionFailed(token, code) }
   }
   panel.querySelector('form')!.addEventListener('submit', event => { event.preventDefault(); void connect(input.value) })
   panel.querySelector('[data-disconnect]')!.addEventListener('click', () => { localStorage.removeItem(CODE_KEY); input.value = ''; void connect('') })

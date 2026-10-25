@@ -200,6 +200,15 @@ test('opens the layout tool inside the integrated workspace for suite synchroniz
   expect(within(screen.getByRole('region', { name: '综合工具' })).getByTitle('字间排版')).toHaveAttribute('src', 'https://sange0613.github.io/zijian-text-layout/records/?suite=1')
 })
 
+test('exposes the original sync code settings inside the todo workspace', async () => {
+  render(<App />)
+  await userEvent.click(screen.getByRole('button', { name: '待办看板' }))
+  const tools = screen.getByRole('region', { name: '综合工具' })
+  await userEvent.click(within(tools).getByRole('button', { name: '展开同步设置' }))
+  expect(within(tools).getByRole('textbox', { name: '同步码' })).toBeVisible()
+  expect(within(tools).getByRole('button', { name: '连接' })).toBeVisible()
+})
+
 test('opens the packaged time journal from the standalone document without separate files', async () => {
   const payload = document.createElement('script')
   payload.id = 'standalone-time-journal'

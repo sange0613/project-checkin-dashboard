@@ -16,9 +16,10 @@ export function useTodoBridge(revision: number, message: string) {
       }
       send()
     }
+    const storageChanged = (event: StorageEvent) => { if (event.key === TODO_SYNC_KEY) send() }
     window.addEventListener('message', receive)
-    window.addEventListener('storage', send)
+    window.addEventListener('storage', storageChanged)
     send()
-    return () => { window.removeEventListener('message', receive); window.removeEventListener('storage', send) }
+    return () => { window.removeEventListener('message', receive); window.removeEventListener('storage', storageChanged) }
   }, [revision, message])
 }

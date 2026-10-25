@@ -19,6 +19,7 @@ import {
   generateSyncCode,
   mergeSuiteStates,
   normalizeSuiteState,
+  preserveSuiteApps,
   suiteStatesEqual,
   type SuiteAppId,
   type SuiteSyncState,
@@ -251,7 +252,8 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         const local = collectLocalSuite()
         const merged = await runTransaction(session.document.firestore, async (transaction) => {
           const snapshot = await transaction.get(session.document)
-          const remote = normalizeSuiteState(snapshot.exists() ? snapshot.data().suite : undefined)
+          const rawSuite = snapshot.exists() ? snapshot.data().suite : undefined
+          const remote = normalizeSuiteState(rawSuite)
           const localDashboard = local.apps.dashboard
           const remoteDashboard = remote.apps.dashboard
           if (localDashboard && remoteDashboard) {
@@ -266,7 +268,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
             localDashboard.updatedBy = deviceIdRef.current
           }
           const next = mergeSuiteStates(remote, local)
-          transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
+          transaction.set(session.document, { suite: preserveSuiteApps(suiteForCloud(next, stateRef.current), rawSuite), updatedAt: serverTimestamp() })
           return next
         })
         if (!session.disposed) {
@@ -343,7 +345,8 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         const connectionResult = await runTransaction(db, async (transaction) => {
           const snapshot = await transaction.get(session.document)
           const legacyDailySnapshot = await transaction.get(legacyDailyDocument)
-          let remote = normalizeSuiteState(snapshot.exists() ? snapshot.data().suite : undefined)
+          const rawSuite = snapshot.exists() ? snapshot.data().suite : undefined
+          let remote = normalizeSuiteState(rawSuite)
           const legacyDailyData = legacyDailySnapshot.exists() ? legacyDailySnapshot.data().data : undefined
           if (!remote.apps.daily && readToolValue('daily') === undefined && legacyDailyData) {
             remote = mergeSuiteStates(remote, {
@@ -367,7 +370,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
             localDashboard.updatedBy = deviceIdRef.current
           }
           const next = mergeSuiteStates(remote, local)
-          transaction.set(session.document, { suite: suiteForCloud(next, stateRef.current), updatedAt: serverTimestamp() })
+          transaction.set(session.document, { suite: preserveSuiteApps(suiteForCloud(next, stateRef.current), rawSuite), updatedAt: serverTimestamp() })
           return { next, collectedRevision }
         })
         if (disposed) return
