@@ -59,6 +59,9 @@ type SyncSession = {
   timer?: ReturnType<typeof setTimeout>
   ready: boolean
   disposed: boolean
+  uploading?: boolean
+  pending?: boolean
+  retryDelay?: number
 }
 
 function parseJson(raw: string | null): unknown | undefined {
@@ -81,7 +84,12 @@ function loadDashboardSync(state: AppState): SyncState {
 }
 
 function saveDashboardSync(sync: SyncState) {
-  localStorage.setItem(DASHBOARD_SYNC_KEY, JSON.stringify(sync))
+  saveMetadata(DASHBOARD_SYNC_KEY, sync)
+}
+
+function saveMetadata(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)) }
+  catch { queueMicrotask(() => window.dispatchEvent(new Event('checkin-storage-error'))) }
 }
 
 function suiteForCloud(suite: SuiteSyncState, currentState: AppState): SuiteSyncState {
@@ -109,14 +117,14 @@ function loadMeta(): SyncMeta {
 }
 
 function saveMeta(meta: SyncMeta) {
-  localStorage.setItem(SUITE_META_KEY, JSON.stringify(meta))
+  saveMetadata(SUITE_META_KEY, meta)
 }
 
 function getDeviceId(): string {
   const existing = localStorage.getItem(SUITE_DEVICE_KEY)
   if (existing) return existing
   const id = crypto.randomUUID()
-  localStorage.setItem(SUITE_DEVICE_KEY, id)
+  try { localStorage.setItem(SUITE_DEVICE_KEY, id) } catch { /* Continue with this session's device ID. */ }
   return id
 }
 
@@ -177,7 +185,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         dashboardSyncRef.current = syncedDashboard
         acceptedDashboardSyncRef.current = syncedDashboard
-        localStorage.setItem(ACCEPTED_SYNC_KEY, JSON.stringify(syncedDashboard))
+        saveMetadata(ACCEPTED_SYNC_KEY, syncedDashboard)
         saveDashboardSync(syncedDashboard)
         setState((current) => {
           const next = applySyncStateToAppState(current, syncedDashboard)
@@ -240,12 +248,16 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const schedulePush = useCallback(() => {
     const session = sessionRef.current
     if (!session?.ready || session.disposed) return
+    if (session.uploading) { session.pending = true; return }
     if (session.timer) clearTimeout(session.timer)
     setStatus('syncing')
     setMessage('正在同步…')
     session.timer = setTimeout(async () => {
       if (session.disposed) return
       session.timer = undefined
+      session.uploading = true
+      session.pending = false
+      let failed = false
       const collectedRevision = localRevisionRef.current
       try {
         const { runTransaction, serverTimestamp } = await import('firebase/firestore')
@@ -275,7 +287,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           // A newer click happened while this transaction was in flight.
           // Never paint the older transaction result over that local state.
           if (localRevisionRef.current !== collectedRevision) {
-            schedulePush()
+            session.pending = true
             return
           }
           acceptedRevisionRef.current = collectedRevision
@@ -283,13 +295,21 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           setStatus('synced')
           setMessage('已同步')
           setLastSyncedAt(Date.now())
+          session.pending = false
+          session.retryDelay = 5000
         }
       } catch (error) {
+        failed = true
         console.error('Suite sync failed', error)
         if (!session.disposed) {
           setStatus('error')
-          setMessage(navigator.onLine ? '同步失败，请重试' : '当前离线')
+          setMessage(navigator.onLine ? '同步失败，正在自动重试' : '当前离线')
+          session.retryDelay = Math.min((session.retryDelay ?? 5000) * 2, 60000)
+          if (navigator.onLine) session.timer = setTimeout(() => { session.timer = undefined; schedulePush() }, session.retryDelay)
         }
+      } finally {
+        session.uploading = false
+        if (!failed && session.pending && !session.disposed) schedulePush()
       }
     }, PUSH_DEBOUNCE_MS)
   }, [applySuite, collectLocalSuite])

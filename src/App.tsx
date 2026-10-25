@@ -137,6 +137,13 @@ export default function App() {
     return () => { clearInterval(timer); window.removeEventListener('online', connection); window.removeEventListener('offline', connection); window.removeEventListener('recovery-updated', conflicts) }
   }, [])
   const [transferMessage, setTransferMessage] = useState('')
+  const [saveError, setSaveError] = useState('')
+  useEffect(() => {
+    const failed = () => setSaveError('浏览器存储空间不足，部分数据或历史版本未能保存，请先导出备份。')
+    window.addEventListener('checkin-storage-error', failed)
+    window.addEventListener('recovery-storage-full', failed)
+    return () => { window.removeEventListener('checkin-storage-error', failed); window.removeEventListener('recovery-storage-full', failed) }
+  }, [])
   const [undo, setUndo] = useState<{ before: AppState; after: AppState } | null>(null)
   const shortcutOrder = Array.isArray(state.preferences?.shortcutOrder) ? state.preferences.shortcutOrder : []
   useEffect(() => { if (!undo) return; const timer = setTimeout(() => setUndo(null), 12000); return () => clearTimeout(timer) }, [undo])
@@ -151,7 +158,10 @@ export default function App() {
   const actualTheme = state.theme === 'system' ? (systemDark ? 'dark' : 'light') : state.theme
   const anchor = new Date(state.anchorDate)
 
-  useEffect(() => repository.save(state), [state])
+  useEffect(() => {
+    try { repository.save(state); setSaveError('') }
+    catch { setSaveError('本机保存失败，请先导出备份，再检查浏览器存储空间。') }
+  }, [state])
   useEffect(() => { document.title = state.title }, [state.title])
   useEffect(() => { document.documentElement.dataset.theme = actualTheme }, [actualTheme])
 
@@ -248,11 +258,22 @@ export default function App() {
   })
 
   const moveProject = (projectId: string, direction: -1 | 1) => update((current) => {
-    const index = current.projects.findIndex((project) => project.id === projectId)
-    const target = index + direction
-    if (index < 0 || target < 0 || target >= current.projects.length) return current
+    const visibleIndex = visibleProjects.findIndex(project => project.id === projectId)
+    const neighbor = visibleProjects[visibleIndex + direction]
+    if (visibleIndex < 0 || !neighbor || Boolean(current.preferences?.[`pin:${projectId}`]) !== Boolean(current.preferences?.[`pin:${neighbor.id}`])) return current
+    const index = current.projects.findIndex(project => project.id === projectId)
+    const target = current.projects.findIndex(project => project.id === neighbor.id)
+    if (index < 0 || target < 0) return current
     const projects = [...current.projects]
     ;[projects[index], projects[target]] = [projects[target], projects[index]]
+    return { ...current, projects }
+  })
+  const reorderProject = (from: string, to: string) => update(current => {
+    if (from === to || !current.projects.some(project => project.id === to) || Boolean(current.preferences?.[`pin:${from}`]) !== Boolean(current.preferences?.[`pin:${to}`])) return current
+    const item = current.projects.find(project => project.id === from)
+    if (!item) return current
+    const projects = current.projects.filter(project => project.id !== from)
+    projects.splice(projects.findIndex(project => project.id === to), 0, item)
     return { ...current, projects }
   })
 
@@ -335,7 +356,7 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `项目进度备份-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = `项目进度备份-${toDateKey(new Date())}.json`
     link.click()
     URL.revokeObjectURL(url)
     setTransferMessage('数据已导出')
@@ -394,11 +415,12 @@ export default function App() {
         <>
           <GoalProgress current={state.progressCurrent} total={state.progressTotal} />
           <CollapsibleSection id="random" title="今日随机">
-            <DailyRandomPanel categories={state.randomCategories} candidates={state.randomCategories.map(category => ({ ...category, items: eligibleRandomItems(category, state.dailyRandomResults, todayKey, Number(state.preferences?.randomAvoidDays ?? 7)) }))} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
+            <DailyRandomPanel key={todayKey} categories={state.randomCategories} candidates={state.randomCategories.map(category => ({ ...category, items: eligibleRandomItems(category, state.dailyRandomResults, todayKey, Number(state.preferences?.randomAvoidDays ?? 7)) }))} results={state.dailyRandomResults[todayKey] ?? {}} onResult={saveRandomResult} />
           </CollapsibleSection>
           <CollapsibleSection id="not-doing" title="不为清单"><NotDoingList items={state.notDoingItems} onChange={updateNotDoingItem} /></CollapsibleSection>
 
           <section className="workspace">
+        {saveError && <p className="save-error" role="alert">{saveError}<button onClick={downloadBackup}>导出备份</button></p>}
         {searchOpen && (
           <div className="search-bar">
             <Search size={16} />
@@ -431,7 +453,7 @@ export default function App() {
         </div>
 
         <div id="checkin-projects" className="project-filter" aria-label="打卡筛选">{([['all', '全部'], ['unchecked', '今天未打卡'], ['archived', '已隐藏']] as const).map(([value, label]) => <button key={value} aria-pressed={projectFilter === value} onClick={() => setProjectFilter(value)}>{label}</button>)}</div>
-        <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} pinnedIds={state.projects.filter(p => state.preferences?.[`pin:${p.id}`]).map(p => p.id)} onPin={id => setPreference(`pin:${id}`, !state.preferences?.[`pin:${id}`])} onArchive={id => update(current => ({ ...current, projects: current.projects.map(p => p.id === id ? { ...p, archived: !p.archived } : p) }))} onReorder={(from, to) => update(current => { const projects = [...current.projects]; const item = projects.find(p => p.id === from); if (!item) return current; const rest = projects.filter(p => p.id !== from); rest.splice(rest.findIndex(p => p.id === to), 0, item); return { ...current, projects: rest } })} />
+        <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} pinnedIds={state.projects.filter(p => state.preferences?.[`pin:${p.id}`]).map(p => p.id)} onPin={id => setPreference(`pin:${id}`, !state.preferences?.[`pin:${id}`])} onArchive={id => update(current => ({ ...current, projects: current.projects.map(p => p.id === id ? { ...p, archived: !p.archived } : p) }))} onReorder={reorderProject} />
         <CollapsibleSection id="stages" title="阶段与排期">
         <ProjectStageBoard
           filterRequest={stageFilterRequest}
@@ -504,7 +526,7 @@ export default function App() {
       )}
 
       <ProjectDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={createProject} />
-      {undo && <div className="undo-toast" role="status"><span>已保存修改</span><button onClick={undoLastChange}>撤销</button><button aria-label="关闭撤销提示" onClick={() => setUndo(null)}>×</button></div>}
+      {undo && <div className="undo-toast" role="status"><span>{saveError ? '修改尚未保存到本机' : '已保存修改'}</span><button onClick={undoLastChange}>撤销</button><button aria-label="关闭撤销提示" onClick={() => setUndo(null)}>×</button></div>}
     </main>
   )
 }

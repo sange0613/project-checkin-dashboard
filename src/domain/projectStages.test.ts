@@ -1,4 +1,4 @@
-import { PROJECT_STAGES, createStageProject } from './projectStages'
+import { PROJECT_STAGES, createStageProject, ganttDateWindow, stageDayDiff } from './projectStages'
 
 test('defines the fixed fifteen stages and percentages', () => {
   expect(PROJECT_STAGES).toHaveLength(15)
@@ -10,4 +10,10 @@ test('creates projects at the first stage', () => {
   const project = createStageProject('住宅设计', 'stage-1')
   expect(project.name).toBe('住宅设计')
   expect(project.stageIndex).toBe(0)
+})
+test('long-running projects and tasks outside the design range still include today', () => {
+  const window = ganttDateWindow([{ designStart: '2018-01-01', designEnd: '2018-12-31', taskStart: '2026-10-26', taskEnd: '2027-01-01' }], '2026-10-26')
+  expect(window.start <= '2026-10-26').toBe(true)
+  expect(window.end >= '2027-01-01').toBe(true)
+  expect(stageDayDiff(window.start, window.end)).toBeLessThan(730)
 })

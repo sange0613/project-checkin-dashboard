@@ -27,7 +27,7 @@ export function ProjectDialog({ open, onClose, onCreate }: Props) {
         </div>
         <label>
           <span>项目名称</span>
-          <input aria-label="项目名称" autoFocus value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && submit()} placeholder="例如：作品集更新" />
+          <input aria-label="项目名称" autoFocus value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.nativeEvent.isComposing || event.keyCode === 229) return; if (event.key === 'Enter') submit(); if (event.key === 'Escape') onClose() }} placeholder="例如：作品集更新" />
         </label>
         <div className="dialog-actions">
           <button className="ghost-button" onClick={onClose}>取消</button>

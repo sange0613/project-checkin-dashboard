@@ -12,10 +12,12 @@ type Props = {
 export function DailyRandomPanel({ categories, results, onResult, candidates = categories }: Props) {
   const [rolling, setRolling] = useState<Partial<Record<RandomCategory['id'], string>>>({})
   const timers = useRef<number[]>([])
+  const latestResults = useRef(results)
+  useEffect(() => { latestResults.current = results }, [results])
   useEffect(() => () => timers.current.forEach(window.clearInterval), [])
 
   const draw = (category: RandomCategory) => {
-    if (results[category.id] || rolling[category.id]) return
+    if (latestResults.current[category.id] || rolling[category.id] || !category.items.length) return
     const finalItem = pickRandomItem(candidates.find(item => item.id === category.id)?.items ?? category.items)
     setRolling(current => ({ ...current, [category.id]: finalItem.name }))
     const interval = window.setInterval(() => {
@@ -29,7 +31,7 @@ export function DailyRandomPanel({ categories, results, onResult, candidates = c
         delete next[category.id]
         return next
       })
-      onResult(category.id, { itemId: finalItem.id, name: finalItem.name })
+      if (!latestResults.current[category.id]) onResult(category.id, { itemId: finalItem.id, name: finalItem.name })
     }, 2000)
     timers.current.push(timeout)
   }
@@ -40,9 +42,9 @@ export function DailyRandomPanel({ categories, results, onResult, candidates = c
         const result = results[category.id]
         const isRolling = Boolean(rolling[category.id])
         return (
-          <button key={category.id} className={result ? 'locked' : ''} disabled={isRolling} aria-disabled={Boolean(result) || isRolling} onClick={() => draw(category)}>
+          <button key={category.id} className={result ? 'locked' : ''} disabled={isRolling || !category.items.length} aria-disabled={Boolean(result) || isRolling || !category.items.length} onClick={() => draw(category)}>
             <small>{category.name}</small>
-            <strong>{result?.name ?? rolling[category.id] ?? '点击随机'}</strong>
+            <strong>{result?.name ?? rolling[category.id] ?? (category.items.length ? '点击随机' : '请先添加内容')}</strong>
           </button>
         )
       })}

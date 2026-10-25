@@ -11,8 +11,9 @@ export function EditableText({ value, onSave, ariaLabel, className = '' }: Props
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const inputRef = useRef<HTMLInputElement>(null)
+  const cancelled = useRef(false)
 
-  useEffect(() => setDraft(value), [value])
+  useEffect(() => { if (!editing) setDraft(value) }, [value, editing])
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus()
@@ -21,9 +22,9 @@ export function EditableText({ value, onSave, ariaLabel, className = '' }: Props
   }, [editing])
 
   const save = () => {
+    if (cancelled.current) return
     const next = draft.trim()
-    if (!next) return
-    onSave(next)
+    if (next && next !== value) onSave(next)
     setEditing(false)
   }
 
@@ -37,8 +38,10 @@ export function EditableText({ value, onSave, ariaLabel, className = '' }: Props
         onChange={(event) => setDraft(event.target.value)}
         onBlur={save}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') save()
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return
+          if (event.key === 'Enter') { event.preventDefault(); save() }
           if (event.key === 'Escape') {
+            cancelled.current = true
             setDraft(value)
             setEditing(false)
           }
@@ -48,7 +51,7 @@ export function EditableText({ value, onSave, ariaLabel, className = '' }: Props
   }
 
   return (
-    <button className={`editable-label ${className}`} onClick={() => setEditing(true)}>
+    <button className={`editable-label ${className}`} onClick={() => { cancelled.current = false; setDraft(value); setEditing(true) }}>
       {value}
     </button>
   )

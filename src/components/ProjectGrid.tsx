@@ -31,6 +31,12 @@ function AggregateCell({ period, checked }: { period: Period; checked: Set<strin
 
 export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle, onRename, onMove, onDelete, pinnedIds = [], onPin, onArchive, onReorder }: Props) {
   const [hovered, setHovered] = useState<{ projectId: string; dateKey: string } | null>(null)
+  const [menuId, setMenuId] = useState<string | null>(null)
+  const menuProject = projects.find(project => project.id === menuId)
+  const canMove = (index: number, direction: -1 | 1) => {
+    const project = projects[index], neighbor = projects[index + direction]
+    return Boolean(project && neighbor && pinnedIds.includes(project.id) === pinnedIds.includes(neighbor.id))
+  }
   const days = getMonthDays(anchor)
   const periods = view === 'week' ? getWeekPeriods(today) : getMonthPeriods(today)
   const columns = view === 'day' ? days.length : periods.length
@@ -38,6 +44,7 @@ export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle,
   const todayKey = toDateKey(today)
 
   return (
+    <>
     <div className={`grid-scroll grid-${view}`}>
       <div className="progress-grid" style={gridStyle}>
         <div className="grid-header project-spacer">项目</div>
@@ -81,6 +88,8 @@ export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle,
                         disabled={future}
                         onMouseEnter={() => setHovered({ projectId: project.id, dateKey: key })}
                         onMouseLeave={() => setHovered(null)}
+                        onFocus={() => setHovered({ projectId: project.id, dateKey: key })}
+                        onBlur={() => setHovered(null)}
                         onClick={() => onToggle(project.id, key)}
                       />
                     )
@@ -88,10 +97,11 @@ export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle,
                 : periods.map((period) => <AggregateCell key={period.key} period={period} checked={checked} />)}
               <div className="project-actions">
                 <span className="lifetime-count" aria-label={`${project.name}累计打卡`}>{checked.size}</span>
+                <button className="project-mobile-actions" aria-label={`操作 ${project.name}`} aria-expanded={menuId === project.id} onClick={() => setMenuId(project.id)}>···</button>
                 {onPin && <button aria-label={`${pinnedIds.includes(project.id) ? '取消置顶' : '置顶'} ${project.name}`} aria-pressed={pinnedIds.includes(project.id)} onClick={() => onPin(project.id)}><Pin size={14} /></button>}
                 {onArchive && <button aria-label={`${project.archived ? '恢复显示' : '隐藏'} ${project.name}`} onClick={() => onArchive(project.id)}>{project.archived ? <Eye size={14} /> : <EyeOff size={14} />}</button>}
-                <button aria-label={`上移 ${project.name}`} disabled={projectIndex === 0} onClick={() => onMove(project.id, -1)}><ArrowUp size={14} /></button>
-                <button aria-label={`下移 ${project.name}`} disabled={projectIndex === projects.length - 1} onClick={() => onMove(project.id, 1)}><ArrowDown size={14} /></button>
+                <button aria-label={`上移 ${project.name}`} disabled={!canMove(projectIndex, -1)} onClick={() => onMove(project.id, -1)}><ArrowUp size={14} /></button>
+                <button aria-label={`下移 ${project.name}`} disabled={!canMove(projectIndex, 1)} onClick={() => onMove(project.id, 1)}><ArrowDown size={14} /></button>
                 <button className="danger" aria-label={`删除 ${project.name}`} onClick={() => window.confirm(`删除“${project.name}”及全部打卡记录？`) && onDelete(project.id)}><Trash2 size={14} /></button>
               </div>
             </div>
@@ -99,5 +109,16 @@ export function ProjectGrid({ view, anchor, today, projects, checkins, onToggle,
         })}
       </div>
     </div>
+    {menuProject && <div className="dialog-backdrop" role="presentation" onMouseDown={() => setMenuId(null)}>
+      <section className="dialog project-mobile-dialog" role="dialog" aria-modal="true" aria-label={`项目操作 ${menuProject.name}`} onMouseDown={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setMenuId(null) }}>
+        <header><strong>{menuProject.name}</strong><button autoFocus className="icon-button" aria-label="关闭项目操作" onClick={() => setMenuId(null)}>×</button></header>
+        {onPin && <button onClick={() => { onPin(menuProject.id); setMenuId(null) }}>{pinnedIds.includes(menuProject.id) ? '取消置顶' : '置顶'} {menuProject.name}</button>}
+        {onArchive && <button onClick={() => { onArchive(menuProject.id); setMenuId(null) }}>{menuProject.archived ? '恢复显示' : '隐藏'} {menuProject.name}</button>}
+        <button disabled={!canMove(projects.indexOf(menuProject), -1)} onClick={() => { onMove(menuProject.id, -1); setMenuId(null) }}>上移 {menuProject.name}</button>
+        <button disabled={!canMove(projects.indexOf(menuProject), 1)} onClick={() => { onMove(menuProject.id, 1); setMenuId(null) }}>下移 {menuProject.name}</button>
+        <button className="danger" onClick={() => { if (window.confirm(`删除“${menuProject.name}”及全部打卡记录？`)) { onDelete(menuProject.id); setMenuId(null) } }}>删除 {menuProject.name}</button>
+      </section>
+    </div>}
+    </>
   )
 }

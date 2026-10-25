@@ -38,6 +38,49 @@ beforeEach(() => {
   firestoreMock.runTransaction.mockReset()
 })
 
+test('retries a failed dashboard upload without discarding the local edit', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'RETRYDASHBOARD123')
+  const writes: any[] = []
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: (_doc: unknown, value: unknown) => writes.push(value) }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return { sync: useSuiteSync(state, setState), setState } })
+  await waitFor(() => expect(result.current.sync.status).toBe('synced'))
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers()
+  try {
+    firestoreMock.runTransaction.mockRejectedValueOnce(new Error('temporary failure'))
+    act(() => result.current.setState(current => ({ ...current, title: '等待上传的修改' })))
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+    expect(result.current.sync.status).toBe('error')
+    await act(async () => { await vi.advanceTimersByTimeAsync(12500) })
+    expect(result.current.sync.status).toBe('synced')
+    expect(JSON.stringify(writes.at(-1))).toContain('等待上传的修改')
+  } finally { unmount(); vi.useRealTimers(); errors.mockRestore() }
+})
+
+test('serializes dashboard uploads while preserving a click made during the request', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'QUEUEDASHBOARD123')
+  const writes: any[] = []
+  const transaction = async (_db: unknown, callback: any) => callback({ get: async () => ({ exists: () => false }), set: (_doc: unknown, value: unknown) => writes.push(value) })
+  firestoreMock.runTransaction.mockImplementation(transaction)
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return { sync: useSuiteSync(state, setState), setState } })
+  await waitFor(() => expect(result.current.sync.status).toBe('synced'))
+  let release = () => {}
+  const waiting = new Promise<void>(resolve => { release = resolve })
+  vi.useFakeTimers()
+  try {
+    firestoreMock.runTransaction.mockImplementationOnce(async (db, callback) => { const next = await transaction(db, callback); await waiting; return next })
+    act(() => result.current.setState(current => ({ ...current, title: '第一次修改' })))
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+    act(() => result.current.setState(current => ({ ...current, title: '第二次修改' })))
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+    expect(firestoreMock.runTransaction).toHaveBeenCalledTimes(2)
+    await act(async () => { release(); await vi.advanceTimersByTimeAsync(2500) })
+    expect(firestoreMock.runTransaction).toHaveBeenCalledTimes(3)
+    expect(result.current.sync.status).toBe('synced')
+    expect(JSON.stringify(writes.at(-1))).toContain('第二次修改')
+  } finally { release(); unmount(); vi.useRealTimers() }
+})
+
 test('merges todo data into the shared code and keeps other app payloads', async () => {
   const workspace = (id: string) => ({ boards: [{ id, name: id, columns: [{ id: 'todo', label: '待办' }], tasks: [{ id, title: id, notes: '', due: '', status: 'todo' }] }], activeBoardId: id })
   localStorage.setItem('project-suite-sync-code-v1', 'TODOSYNCQA123')

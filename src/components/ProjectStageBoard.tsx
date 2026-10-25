@@ -8,6 +8,7 @@ import {
   stagePercent,
   stageDayDiff,
   toStageDate,
+  ganttDateWindow,
 } from '../domain/projectStages'
 import { DEFAULT_STAGE_LABELS, type StageProject, type StageProjectDraft } from '../domain/types'
 import { EditableText } from './EditableText'
@@ -48,10 +49,7 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
   const today = toStageDate(new Date())
   const chart = useMemo(() => {
     if (!hydratedProjects.length) return null
-    const starts = [today, ...hydratedProjects.map((project) => project.designStart)].sort()
-    const ends = [today, ...hydratedProjects.map((project) => project.designEnd)].sort()
-    const start = starts[0]
-    const end = ends.at(-1) ?? start
+    const { start, end } = ganttDateWindow(hydratedProjects, today)
     return { start, end, days: dateRange(start, end) }
   }, [hydratedProjects, today])
 
@@ -68,6 +66,7 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
 
   if (!chart) return <div className="stage-gantt-empty">添加项目后显示排期甘特图</div>
   const chartWidth = chart.days.length * dayWidth
+  const acrossYears = chart.start.slice(0, 4) !== chart.end.slice(0, 4)
   const locateToday = () => {
     if (!scrollRef.current || todayIndex < 0) return
     scrollRef.current.scrollTo({ left: todayScrollLeft(), behavior: 'smooth' })
@@ -77,7 +76,7 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
     <section className="stage-gantt-section" aria-label="项目排期">
       <div className="stage-gantt-heading">
         <div><h3>项目排期</h3><p>浅色为设计周期，深色为当前任务</p></div>
-        <div><span>{shortDate(chart.start)} — {shortDate(chart.end)}</span><button type="button" onClick={locateToday}><CalendarDays size={14} />定位今天</button></div>
+        <div><span>{acrossYears ? chart.start.replaceAll('-', '/') : shortDate(chart.start)} — {acrossYears ? chart.end.replaceAll('-', '/') : shortDate(chart.end)}</span><button type="button" onClick={locateToday}><CalendarDays size={14} />定位今天</button></div>
       </div>
       <div className="stage-gantt-scroll" ref={scrollRef}>
         <div className="stage-gantt" style={{ width: labelWidth + chartWidth }}>
@@ -90,16 +89,20 @@ function ProjectGantt({ projects, labels }: { projects: StageProject[]; labels: 
           </div>
           {todayIndex >= 0 ? <i className="stage-gantt-today" style={{ left: labelWidth + todayIndex * dayWidth + dayWidth / 2 }} /> : null}
           {hydratedProjects.map((project) => {
-            const designLeft = labelWidth + stageDayDiff(chart.start, project.designStart) * dayWidth
-            const designWidth = Math.max(dayWidth, (stageDayDiff(project.designStart, project.designEnd) + 1) * dayWidth)
-            const taskLeft = labelWidth + stageDayDiff(chart.start, project.taskStart) * dayWidth
-            const taskWidth = Math.max(dayWidth, (stageDayDiff(project.taskStart, project.taskEnd) + 1) * dayWidth)
+            const designStart = project.designStart < chart.start ? chart.start : project.designStart
+            const designEnd = project.designEnd > chart.end ? chart.end : project.designEnd
+            const taskStart = project.taskStart < chart.start ? chart.start : project.taskStart
+            const taskEnd = project.taskEnd > chart.end ? chart.end : project.taskEnd
+            const designLeft = labelWidth + stageDayDiff(chart.start, designStart) * dayWidth
+            const designWidth = Math.max(0, (stageDayDiff(designStart, designEnd) + 1) * dayWidth)
+            const taskLeft = labelWidth + stageDayDiff(chart.start, taskStart) * dayWidth
+            const taskWidth = Math.max(0, (stageDayDiff(taskStart, taskEnd) + 1) * dayWidth)
             return (
               <div className="stage-gantt-row" key={project.id}>
                 <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span><strong>{project.name}</strong><small>{labels[project.stageIndex]}</small></span></div>
                 <div className="stage-gantt-grid" style={{ left: labelWidth, width: chartWidth, backgroundSize: `${dayWidth}px 100%` }} />
-                <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }} />
-                <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}><span>{labels[project.stageIndex]}{project.taskCompleted ? ' · 已完结' : ''}</span></div>
+                {designWidth > 0 && <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }} />}
+                {taskWidth > 0 && <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}><span>{labels[project.stageIndex]}{project.taskCompleted ? ' · 已完结' : ''}</span></div>}
               </div>
             )
           })}

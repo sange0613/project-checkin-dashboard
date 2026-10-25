@@ -56,3 +56,18 @@ test('backs up malformed data and returns initial state', () => {
   })
   expect(storage.getItem('project-checkins:backup')).toBe('{bad json')
 })
+test('rejects structurally corrupt saved data and preserves it for recovery', () => {
+  const raw = JSON.stringify({ version: 1, state: { ...createInitialState(), stageProjects: {} } })
+  const storage = new MemoryStorage({ 'project-checkins': raw })
+  expect(createLocalCheckinRepository(storage).load().stageProjects).toEqual([])
+  expect(storage.getItem('project-checkins:backup')).toBe(raw)
+})
+test('does not overwrite unreadable original data when the recovery copy cannot be saved', () => {
+  const storage = new MemoryStorage({ 'project-checkins': '{bad json' })
+  const set = storage.setItem.bind(storage)
+  storage.setItem = (key, value) => { if (key.endsWith(':backup')) throw new Error('quota'); set(key, value) }
+  const repository = createLocalCheckinRepository(storage)
+  const initial = repository.load()
+  expect(() => repository.save(initial)).toThrow('quota')
+  expect(storage.getItem('project-checkins')).toBe('{bad json')
+})

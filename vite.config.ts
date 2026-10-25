@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
       const version = Date.now().toString(36)
       this.emitFile({ type: 'asset', fileName: 'sw.js', source: `
 const CACHE = 'project-dashboard-${version}';
-const FILES = ${JSON.stringify(['./', './app-icon.svg', ...assets.map(name => './' + name)])};
+const FILES = ${JSON.stringify(['./', './app-icon.svg', './time-journal/index.html', ...assets.map(name => './' + name)])};
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))));
 self.addEventListener('message', event => { if (event.data === 'activate-update') self.skipWaiting(); });
 self.addEventListener('activate', event => event.waitUntil((async () => {

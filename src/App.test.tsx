@@ -5,6 +5,35 @@ import { createInitialState } from './domain/types'
 
 beforeEach(() => localStorage.clear())
 
+test('moves projects by the visible order even when hidden rows lie between them', async () => {
+  const state = createInitialState()
+  state.projects = [
+    { id: 'a', name: '甲', createdAt: '', archived: false },
+    { id: 'b', name: '隐藏项', createdAt: '', archived: true },
+    { id: 'c', name: '丙', createdAt: '', archived: false },
+  ]
+  localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state }))
+  render(<App />)
+  await userEvent.click(screen.getByRole('button', { name: '上移 丙' }))
+  expect(screen.getAllByTestId('project-name').map(item => item.textContent)).toEqual(['丙', '甲'])
+  await userEvent.click(screen.getByRole('button', { name: '置顶 甲' }))
+  expect(screen.getByRole('button', { name: '下移 甲' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '上移 丙' })).toBeDisabled()
+})
+
+test('keeps the page usable and exposes backup export when primary storage is full', async () => {
+  const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError') })
+  try {
+    render(<App />)
+    expect(screen.getByRole('alert')).toHaveTextContent(/保存|存储空间/)
+    expect(within(screen.getByRole('alert')).getByRole('button', { name: '导出备份' })).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: '新项目' }))
+    await userEvent.type(screen.getByRole('textbox', { name: '项目名称' }), '未保存项目')
+    await userEvent.click(screen.getByRole('button', { name: '创建' }))
+    expect(screen.getByTestId('project-name')).toHaveTextContent('未保存项目')
+  } finally { spy.mockRestore() }
+})
+
 test('places the daily summary immediately above the period toolbar', () => {
   render(<App />)
   const summary = screen.getByRole('navigation', { name: '今日摘要' })

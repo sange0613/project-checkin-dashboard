@@ -71,7 +71,7 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .not-doing-list { display: grid; grid-template-columns: 96px repeat(6, minmax(100px, 1fr)); overflow-x: auto; border-bottom: 1px solid #ecece7; scrollbar-width: none; }
 .not-doing-list::-webkit-scrollbar { display: none; }
 .not-doing-list > strong { position: sticky; left: 0; z-index: 2; min-height: 46px; display: flex; align-items: center; padding: 0 18px; background: var(--theme-surface); color: #777771; font-size: 11px; white-space: nowrap; }
-.not-doing-list label { min-width: 100px; border-left: 1px solid #eeeeea; }
+.not-doing-list label { position: relative; min-width: 100px; border-left: 1px solid #eeeeea; }
 .not-doing-list input { width: 100%; min-height: 46px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; outline: 0; background: transparent; color: inherit; text-align: center; font-size: 12px; font-weight: 600; text-overflow: ellipsis; }
 .not-doing-list input::placeholder { color: #b0b0aa; font-weight: 500; }
 .not-doing-list input:focus { border-bottom-color: #292927; background: #fafaf8; }
@@ -92,6 +92,8 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .eyebrow { margin: 0 0 7px; font-family: var(--font-ui); letter-spacing: .12em; font-size: 10px; color: #aaa9a2; }
 .period-toolbar h1 { margin: 0; font-size: clamp(25px, 3vw, 35px); font-weight: 600; letter-spacing: .02em; }
 .period-meta { margin: 6px 0 0; font-size: 12px; color: #767671; }
+.save-error { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; font-size: 13px; color: #b4673a; }
+.save-error button { padding: 6px 10px; background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 6px; cursor: pointer; }
 .month-navigation, .intensity-legend { display: flex; align-items: center; gap: 7px; }
 .intensity-legend { font-size: 11px; color: #72726d; }
 .intensity-legend i { width: 13px; height: 13px; border-radius: 4px; }
@@ -703,6 +705,11 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 
 /* Keep action targets wide enough after the legacy responsive rules. */
 .grid-header.menu-spacer { z-index: 8; }
+.project-actions > .project-mobile-actions { display: none; }
+.project-mobile-dialog header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.project-mobile-dialog > button { display: block; width: 100%; min-height: 44px; margin-top: 6px; padding: 10px; border: 1px solid #8883; border-radius: 7px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.project-mobile-dialog > button:disabled { opacity: .35; cursor: default; }
+.project-mobile-dialog > .danger { color: #bc6255; }
 .bottom-panels > details { padding: 0; }
 .bottom-panels > details > summary { padding: 13px 2px; color: #777771; font-size: 11px; font-weight: 500; list-style: none; cursor: pointer; }
 .bottom-panels > details > summary::-webkit-details-marker { display: none; }
@@ -731,6 +738,14 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
   .grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 175px repeat(12, minmax(42px, 1fr)) 225px; }
 }
 @media (max-width: 600px) {
+  .top-actions { flex-wrap: nowrap; gap: 2px; }
+  .top-actions > .icon-button, .top-actions > .new-project-button, .top-actions > .shortcut-more-wrap { flex: 1 1 0; width: 0; min-width: 0; max-width: 40px; }
+  .top-actions > .shortcut-more-wrap > .icon-button { width: 100%; flex-basis: auto; }
+  .grid-day .progress-grid, .grid-week .progress-grid, .grid-month .progress-grid { grid-template-columns: 125px repeat(var(--time-columns), minmax(32px, 1fr)) 58px; }
+  .project-actions { gap: 1px; padding-left: 2px; }
+  .project-actions > button { display: none; }
+  .project-actions > .project-mobile-actions { display: grid; width: 32px; min-height: 44px; }
+  .project-actions .lifetime-count { min-width: 16px; font-size: 11px; }
   .shortcut-setting-row { grid-template-columns: 38px minmax(50px, 1fr) repeat(3, auto); }
   .shortcut-setting-row input:nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
   .conflict-choices { grid-template-columns: 1fr; }
