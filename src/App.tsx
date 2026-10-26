@@ -22,7 +22,7 @@ import { eligibleRandomItems, readStageEvents, withStageEvent } from './domain/e
 import { addStageDays, hydrateStageProject } from './domain/projectStages'
 import type { AppState, Project, StageProjectDraft, ViewMode } from './domain/types'
 import { toDateKey } from './domain/dateRanges'
-import { exportState, importState } from './storage/dataTransfer'
+import { exportFullBackup, parseFullBackup, restoreToolBackups } from './storage/suiteBackup'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
 import { useSuiteSync } from '@app-sync'
 import { useTodoBridge } from './hooks/useTodoBridge'
@@ -352,24 +352,36 @@ export default function App() {
   }
 
   const downloadBackup = () => {
-    const blob = new Blob([exportState(state)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `项目进度备份-${toDateKey(new Date())}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-    setTransferMessage('数据已导出')
+    try {
+      const blob = new Blob([exportFullBackup(state)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `项目进度备份-${toDateKey(new Date())}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+      setTransferMessage('统一备份已导出')
+    } catch { setTransferMessage('导出失败：部分本机数据无法读取，请勿清除浏览器数据。') }
   }
 
   const loadBackup = async (file?: File) => {
     if (!file) return
     try {
-      const nextState = importState(await file.text())
-      if (window.confirm('导入会覆盖当前浏览器中的全部项目和打卡数据，继续吗？')) {
+      const backup = parseFullBackup(await file.text())
+      if (window.confirm('导入会恢复项目看板，并合并备份中的子页面数据；保留子页面已有的更新与删除记录，不更换同步码。连接同步后会同步到其他设备。继续吗？')) {
         saveRecovery(state, '导入前')
-        setState(nextState)
-        setTransferMessage('数据已导入')
+        try { repository.save(backup.state) }
+        catch {
+          window.dispatchEvent(new Event('checkin-storage-error'))
+          throw new Error('无法保存导入数据，请先导出备份并检查浏览器存储空间。')
+        }
+        try { restoreToolBackups(backup.tools) }
+        catch (error) {
+          try { repository.save(state) } catch { window.dispatchEvent(new Event('checkin-storage-error')) }
+          throw error
+        }
+        setState(backup.state)
+        setTransferMessage('统一备份已导入，同步码保持不变')
       }
     } catch (error) {
       setTransferMessage(error instanceof Error ? error.message : '导入失败')
@@ -492,7 +504,7 @@ export default function App() {
               onChange={(event) => loadBackup(event.target.files?.[0])}
             />
             <button aria-label="导入数据" onClick={() => importInputRef.current?.click()}><Upload size={13} />导入</button>
-            <button aria-label="导出数据" onClick={downloadBackup}><Download size={13} />导出</button>
+            <button aria-label="导出数据" title="统一备份：项目、饮、清、物、时间、模板与待办（不含同步码）" onClick={downloadBackup}><Download size={13} />导出</button>
           </div>
         </footer>
         <div className="bottom-panels">

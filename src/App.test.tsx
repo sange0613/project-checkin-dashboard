@@ -2,8 +2,54 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { createInitialState } from './domain/types'
+import { exportFullBackup } from './storage/suiteBackup'
+import { TOOL_STORAGE_KEYS } from './sync/toolStorage'
 
 beforeEach(() => localStorage.clear())
+
+test('imports a unified backup while retaining the existing sync code', async () => {
+  const restored = createInitialState()
+  restored.title = '统一备份恢复'
+  localStorage.setItem(TOOL_STORAGE_KEYS.time, JSON.stringify({ '2026-10-26': [] }))
+  const content = exportFullBackup(restored)
+  localStorage.clear()
+  const { container } = render(<App />)
+  // Set after mount so this test never starts an actual cloud connection.
+  localStorage.setItem('project-suite-sync-code-v1', 'KEEPORIGINAL1234')
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  const file = new File([content], 'unified.json', { type: 'application/json' })
+  Object.defineProperty(file, 'text', { value: async () => content })
+  try {
+    await userEvent.upload(container.querySelector<HTMLInputElement>('input[type="file"]')!, file)
+    expect(screen.getByRole('button', { name: '统一备份恢复' })).toBeVisible()
+    expect(JSON.parse(localStorage.getItem(TOOL_STORAGE_KEYS.time)!).days).toEqual({ '2026-10-26': [] })
+    expect(localStorage.getItem('project-suite-sync-code-v1')).toBe('KEEPORIGINAL1234')
+    expect(screen.getByText('统一备份已导入，同步码保持不变')).toBeVisible()
+  } finally { confirm.mockRestore() }
+})
+
+test('does not import subpages if the dashboard cannot be saved', async () => {
+  const next = createInitialState()
+  next.title = '不应覆盖'
+  localStorage.setItem(TOOL_STORAGE_KEYS.time, JSON.stringify({ '2026-10-26': [] }))
+  const content = exportFullBackup(next)
+  localStorage.clear()
+  const { container } = render(<App />)
+  const original = Storage.prototype.setItem
+  const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function(this: Storage, key, value) {
+    if (key === 'project-checkins' && value.includes('不应覆盖')) throw new DOMException('full', 'QuotaExceededError')
+    original.call(this, key, value)
+  })
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  const file = new File([content], 'full.json', { type: 'application/json' })
+  Object.defineProperty(file, 'text', { value: async () => content })
+  try {
+    await userEvent.upload(container.querySelector<HTMLInputElement>('input[type="file"]')!, file)
+    expect(screen.queryByRole('button', { name: '不应覆盖' })).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOOL_STORAGE_KEYS.time)).toBeNull()
+    expect(screen.getByText('无法保存导入数据，请先导出备份并检查浏览器存储空间。')).toBeVisible()
+  } finally { storage.mockRestore(); confirm.mockRestore() }
+})
 
 test('moves projects by the visible order even when hidden rows lie between them', async () => {
   const state = createInitialState()

@@ -188,10 +188,11 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .empty-state p { margin: 9px 0 20px; color: #74746f; font-size: 13px; }
 .footer-note { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eeeeea; color: #777771; font-size: 11px; }
 .footer-copy { display: flex; gap: 18px; }
-.data-transfer { display: flex; align-items: center; gap: 3px; }
+.data-transfer { display: flex; align-items: center; gap: 3px; min-width: 0; }
 .data-transfer button { border: 0; background: transparent; color: #777771; padding: 5px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 10px; font-weight: 600; }
 .data-transfer button:hover { color: #4f4f4b; background: #f3f3ef; }
-.transfer-message { margin-right: 5px; color: #777771; }
+.data-transfer button { flex-shrink: 0; white-space: nowrap; }
+.transfer-message { margin-right: 5px; color: #777771; overflow-wrap: anywhere; }
 .bottom-panels { margin-top: 14px; border-top: 1px solid #eeeeea; }
 .bottom-panel { border-bottom: 1px solid #eeeeea; }
 .bottom-panel summary { padding: 13px 2px; cursor: pointer; color: #777771; font-size: 11px; list-style: none; }
@@ -367,8 +368,9 @@ body, .app-shell, button, input, .checkin-cell, .aggregate-cell { transition: co
 .suite-sync-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .suite-sync-heading h2 { margin: 0; font-size: 19px; font-weight: 700; }
 .suite-sync-heading p { margin: 7px 0 0; color: #777771; font-size: 11px; }
-.suite-sync-heading-actions { display: flex; align-items: center; gap: 7px; }
-.suite-sync-status { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 999px; background: #f2f2ef; color: #666660; font-size: 10px; white-space: nowrap; }
+.suite-sync-heading-actions { display: flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; }
+.suite-sync-heading-actions > button, .suite-sync-status svg { flex-shrink: 0; }
+.suite-sync-status { min-width: 0; min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 999px; background: #f2f2ef; color: #666660; font-size: 10px; white-space: normal; overflow-wrap: anywhere; }
 .suite-sync-status[data-status="synced"] { background: #e9f4eb; color: #356b41; }
 .suite-sync-status[data-status="error"] { background: #f8ecea; color: #a44840; }
 .suite-sync-toggle { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 1px solid #e1e1dc; border-radius: 9px; background: transparent; color: #777771; cursor: pointer; }

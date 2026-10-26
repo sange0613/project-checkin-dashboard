@@ -9,6 +9,12 @@ import { normalizeTodoSync, todoWorkspace, TODO_SYNC_KEY } from '../sync/todoSyn
 
 const firestoreMock = vi.hoisted(() => ({
   runTransaction: vi.fn(),
+  onSnapshot: vi.fn(),
+}))
+
+vi.mock('../sync/suiteSyncModel', async importOriginal => ({
+  ...await importOriginal<typeof import('../sync/suiteSyncModel')>(),
+  deriveSuiteDocumentId: async (code: string) => `test-${code}`,
 }))
 
 vi.mock('firebase/app', () => ({
@@ -27,7 +33,7 @@ vi.mock('firebase/firestore', () => {
   return {
     doc: (_db: unknown, ...parts: string[]) => ({ firestore: db, path: parts.join('/') }),
     getFirestore: () => db,
-    onSnapshot: () => vi.fn(),
+    onSnapshot: (...args: unknown[]) => firestoreMock.onSnapshot(...args),
     runTransaction: firestoreMock.runTransaction,
     serverTimestamp: () => 'server-time',
   }
@@ -36,6 +42,120 @@ vi.mock('firebase/firestore', () => {
 beforeEach(() => {
   localStorage.clear()
   firestoreMock.runTransaction.mockReset()
+  firestoreMock.onSnapshot.mockReset().mockReturnValue(vi.fn())
+})
+
+test('automatically reconnects after the first connection transaction fails', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'FIRSTRETRY12345')
+  firestoreMock.runTransaction.mockRejectedValueOnce(new Error('temporary network failure')).mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers()
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  try {
+    await vi.waitFor(async () => { await act(async () => { await vi.advanceTimersByTimeAsync(0) }); expect(result.current.status).toBe('error') })
+    expect(result.current.message).toContain('自动重连')
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(result.current.status).toBe('synced')
+    expect(firestoreMock.runTransaction).toHaveBeenCalledTimes(2)
+    expect(result.current.connectedCode).toBe('FIRSTRETRY12345')
+  } finally { unmount(); vi.useRealTimers(); error.mockRestore() }
+})
+
+test('cancels connection retries when disconnected and does not retry permission errors', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'STOPRETRY123456')
+  firestoreMock.runTransaction.mockRejectedValue(new Error('temporary'))
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers()
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  try {
+    await vi.waitFor(async () => { await act(async () => { await vi.advanceTimersByTimeAsync(0) }); expect(result.current.status).toBe('error') })
+    act(() => result.current.disconnect())
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+    expect(firestoreMock.runTransaction).toHaveBeenCalledTimes(1)
+    expect(result.current.status).toBe('local')
+    firestoreMock.runTransaction.mockRejectedValue(Object.assign(new Error('denied'), { code: 'permission-denied' }))
+    act(() => result.current.connect('PERMISSION123456'))
+    await vi.waitFor(async () => { await act(async () => { await vi.advanceTimersByTimeAsync(0) }); expect(result.current.status).toBe('error') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+    expect(firestoreMock.runTransaction).toHaveBeenCalledTimes(2)
+    expect(result.current.message).toContain('权限')
+  } finally { unmount(); vi.useRealTimers(); error.mockRestore() }
+})
+
+test('reconnects a failed listener without waiting for a new browser online event', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'LISTENER1234567')
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers()
+  try {
+    act(() => firestoreMock.onSnapshot.mock.calls[0][2](new Error('connection interrupted')))
+    expect(result.current.status).toBe('error')
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(result.current.status).toBe('synced')
+    expect(firestoreMock.onSnapshot).toHaveBeenCalledTimes(2)
+  } finally { unmount(); vi.useRealTimers(); error.mockRestore() }
+})
+
+test('failed sync-code persistence shows a warning without changing the current code', () => {
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  const original = Storage.prototype.setItem
+  const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function(this: Storage, key, value) {
+    if (key === 'project-suite-sync-code-v1') throw new DOMException('full', 'QuotaExceededError')
+    original.call(this, key, value)
+  })
+  try {
+    act(() => result.current.createAndConnect())
+    expect(result.current.codeInput).toBe('')
+    expect(result.current.connectedCode).toBe('')
+    expect(result.current.message).toContain('同步码未能保存')
+    act(() => result.current.connect('UNSAVEDCODE1234'))
+    expect(result.current.connectedCode).toBe('')
+    expect(result.current.status).toBe('error')
+    expect(localStorage.getItem('project-suite-sync-code-v1')).toBeNull()
+  } finally { unmount(); spy.mockRestore() }
+})
+
+test('uploads restored subpages with the existing code and refreshes integrated tools', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'RESTORETOOLS1234')
+  const writes: any[] = []
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: (_doc: unknown, value: unknown) => writes.push(value) }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  vi.useFakeTimers()
+  try {
+    act(() => {
+      localStorage.setItem(TODO_SYNC_KEY, JSON.stringify(normalizeTodoSync({ boards: [{ id: 'b', name: '导入', columns: [{ id: 'todo', label: '待办' }], tasks: [] }], activeBoardId: 'b' })))
+      window.dispatchEvent(new Event('suite-tools-restored'))
+    })
+    expect(result.current.toolDataRevision).toBeGreaterThan(0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+    expect(result.current.status).toBe('synced')
+    expect(writes.at(-1).suite.apps.todo).toBeDefined()
+    expect(result.current.connectedCode).toBe('RESTORETOOLS1234')
+  } finally { unmount(); vi.useRealTimers() }
+})
+
+test('reports storage-full errors from remote subpages without crashing or repeatedly reconnecting', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'FULLSTORAGE12345')
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  await waitFor(() => expect(result.current.status).toBe('synced'))
+  const original = Storage.prototype.setItem
+  const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function(this: Storage, key, value) {
+    if (key === TODO_SYNC_KEY) throw new DOMException('full', 'QuotaExceededError')
+    original.call(this, key, value)
+  })
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers()
+  try {
+    act(() => firestoreMock.onSnapshot.mock.calls[0][1]({ exists: () => true, data: () => ({ suite: { version: 1, apps: { todo: { value: { version: 1, fields: {} }, updatedAt: 1, updatedBy: 'remote' } } } }) }))
+    expect(result.current.status).toBe('error')
+    expect(result.current.message).toContain('释放浏览器空间')
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+    expect(firestoreMock.runTransaction).toHaveBeenCalledTimes(1)
+  } finally { unmount(); vi.useRealTimers(); storage.mockRestore(); error.mockRestore() }
 })
 
 test('retries a failed dashboard upload without discarding the local edit', async () => {

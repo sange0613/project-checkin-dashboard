@@ -17,7 +17,7 @@ export function RecoveryPanel({ state, onRestore }: { state: AppState; onRestore
   const entries = readRecovery(), conflicts = readConflicts()
   return <details className="recovery-panel" id="recovery-panel">
     <summary>历史与冲突{conflicts.length > 0 ? ` · ${conflicts.length} 项待确认` : ''}</summary>
-    <p>最近 10 个项目看板版本保存在本机浏览器，不含饮、清、物的数据或同步码。恢复会作为新修改同步到其他设备。</p>
+    <p>最近 10 个项目看板版本保存在本机浏览器，不含子页面数据或同步码。备份各子页面请使用页面底部的“导出”。恢复历史版本会作为新修改同步到其他设备。</p>
     {warning && <p role="alert">{warning}</p>}
     <button onClick={() => saveRecovery(state, '手动快照')}>保存当前版本</button>
     {conflicts.map(conflict => <article key={conflict.id} className="conflict-item">

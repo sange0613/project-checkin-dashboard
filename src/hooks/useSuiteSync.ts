@@ -11,6 +11,7 @@ import {
 import type { AppState, SyncState } from '../domain/types'
 import { saveRecovery } from '../storage/recovery'
 import { recordConflicts } from '../storage/syncConflicts'
+import { TOOL_STORAGE_KEYS, readToolValue } from '../sync/toolStorage'
 const ACCEPTED_SYNC_KEY = 'project-suite-dashboard-accepted-v1'
 import {
   SUITE_APP_IDS,
@@ -40,14 +41,6 @@ const SUITE_META_KEY = 'project-suite-sync-meta-v1'
 const DASHBOARD_SYNC_KEY = 'project-suite-dashboard-sync-v2'
 const DAILY_CODE_KEY = 'calorie-tracker-v1-sync-code'
 const PUSH_DEBOUNCE_MS = 2_500
-const TOOL_STORAGE_KEYS: Record<Exclude<SuiteAppId, 'dashboard'>, string> = {
-  daily: 'calorie-tracker-v1',
-  checklist: 'qingdan-app-state-v2',
-  wuwu: 'daily-cost-items-v2',
-  time: 'time-noticed.v1',
-  text: 'zijian-layout-library-sync-v1',
-  todo: 'liubai-suite-sync-v1',
-}
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>
 type SyncStatus = 'local' | 'connecting' | 'syncing' | 'synced' | 'error'
@@ -128,18 +121,6 @@ function getDeviceId(): string {
   return id
 }
 
-function readToolValue(id: Exclude<SuiteAppId, 'dashboard'>): unknown | undefined {
-  if (id === 'text' && !localStorage.getItem(TOOL_STORAGE_KEYS.text)) {
-    const records = parseJson(localStorage.getItem('zijian-saved-layout-records-v1'))
-    if (Array.isArray(records) && records.length) {
-      const value = { version: 1, entries: records.map(record => ({ id: record.id, record, updatedAt: record.savedAt ?? 0, updatedBy: 'legacy-zijian' })) }
-      localStorage.setItem(TOOL_STORAGE_KEYS.text, JSON.stringify(value))
-      return value
-    }
-  }
-  return parseJson(localStorage.getItem(TOOL_STORAGE_KEYS[id]))
-}
-
 function initialCode(): string {
   return cleanSyncCode(localStorage.getItem(SUITE_CODE_KEY) || localStorage.getItem(DAILY_CODE_KEY) || '')
 }
@@ -197,7 +178,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         const storageKey = TOOL_STORAGE_KEYS[id]
         if (fingerprint(parseJson(localStorage.getItem(storageKey))) !== nextFingerprint) {
-          localStorage.setItem(storageKey, JSON.stringify(payload.value))
+          try { localStorage.setItem(storageKey, JSON.stringify(payload.value)) }
+          catch {
+            window.dispatchEvent(new Event('checkin-storage-error'))
+            throw Object.assign(new Error('本机数据保存失败'), { code: 'local-storage-full' })
+          }
           toolsChanged = true
         }
       }
@@ -302,10 +287,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         failed = true
         console.error('Suite sync failed', error)
         if (!session.disposed) {
+          const storageFull = (error as { code?: string })?.code === 'local-storage-full'
           setStatus('error')
-          setMessage(navigator.onLine ? '同步失败，正在自动重试' : '当前离线')
+          setMessage(storageFull ? '本机保存失败，请先导出备份并释放浏览器空间后重试' : navigator.onLine ? '同步失败，正在自动重试' : '当前离线')
           session.retryDelay = Math.min((session.retryDelay ?? 5000) * 2, 60000)
-          if (navigator.onLine) session.timer = setTimeout(() => { session.timer = undefined; schedulePush() }, session.retryDelay)
+          if (navigator.onLine && !storageFull) session.timer = setTimeout(() => { session.timer = undefined; schedulePush() }, session.retryDelay)
         }
       } finally {
         session.uploading = false
@@ -338,13 +324,37 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   useEffect(() => {
     if (!connectedCode) return
     let disposed = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let retryDelay = 5000
     const session: SyncSession = { code: connectedCode, document: null as unknown as DocumentReference, ready: false, disposed: false }
     sessionRef.current?.unsubscribe?.()
     if (sessionRef.current?.timer) clearTimeout(sessionRef.current.timer)
     if (sessionRef.current) sessionRef.current.disposed = true
     sessionRef.current = session
 
+    function retryConnection(error: unknown) {
+      if (disposed) return
+      session.ready = false
+      if (session.timer) { clearTimeout(session.timer); session.timer = undefined }
+      if (retryTimer) clearTimeout(retryTimer)
+      setStatus('error')
+      const code = (error as { code?: string })?.code ?? ''
+      const permanent = ['local-storage-full', 'permission-denied', 'invalid-argument', 'resource-exhausted', 'auth/operation-not-allowed', 'auth/invalid-api-key'].includes(code)
+      setMessage(code === 'local-storage-full' ? '本机保存失败，请先导出备份并释放浏览器空间后重试' : !navigator.onLine ? '当前离线，联网后自动重连' : permanent ? '同步连接失败，请检查同步码或权限后重试' : '同步连接失败，正在自动重连…')
+      if (navigator.onLine && !permanent) {
+        retryTimer = setTimeout(() => {
+          retryTimer = undefined
+          if (disposed) return
+          if (session.uploading) { retryConnection(error); return }
+          session.unsubscribe?.()
+          void start()
+        }, retryDelay)
+        retryDelay = Math.min(retryDelay * 2, 60000)
+      }
+    }
+
     async function start() {
+      if (disposed) return
       setStatus('connecting')
       setMessage('正在连接…')
       try {
@@ -358,9 +368,11 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           : initializeApp(FIREBASE_CONFIG, 'project-suite-sync')
         const auth = getAuth(firebaseApp)
         if (!auth.currentUser) await signInAnonymously(auth)
+        if (disposed) return
         const db = getFirestore(firebaseApp)
         session.document = doc(db, 'syncSpaces', await deriveSuiteDocumentId(connectedCode))
         const legacyDailyDocument = doc(db, 'syncSpaces', connectedCode)
+        if (disposed) return
 
         const connectionResult = await runTransaction(db, async (transaction) => {
           const snapshot = await transaction.get(session.document)
@@ -394,7 +406,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           return { next, collectedRevision }
         })
         if (disposed) return
-        localStorage.removeItem(DAILY_CODE_KEY)
+        try { localStorage.removeItem(DAILY_CODE_KEY) } catch { /* Legacy code is harmless when retained. */ }
         session.ready = true
         if (localRevisionRef.current === connectionResult.collectedRevision) {
           acceptedRevisionRef.current = connectionResult.collectedRevision
@@ -407,38 +419,38 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           // and immediately upload it instead of applying the older response.
           schedulePush()
         }
+        retryDelay = 5000
 
         session.unsubscribe = onSnapshot(session.document, (snapshot) => {
-          if (disposed || !snapshot.exists()) return
-          // Never accept a snapshot while any local edit is still unacknowledged.
-          // A time-based guard fails on slow mobile connections.
-          if (localRevisionRef.current !== acceptedRevisionRef.current) {
-            schedulePush()
-            return
-          }
-          const remote = normalizeSuiteState(snapshot.data().suite)
-          const local = collectLocalSuite()
-          const next = mergeSuiteStates(remote, local)
-          applySuite(next)
-          if (!suiteStatesEqual(next, remote)) schedulePush()
-          else {
-            setStatus('synced')
-            setMessage('已同步')
-            setLastSyncedAt(Date.now())
+          try {
+            if (disposed || !snapshot.exists()) return
+            // Never accept a snapshot while any local edit is still unacknowledged.
+            // A time-based guard fails on slow mobile connections.
+            if (localRevisionRef.current !== acceptedRevisionRef.current) {
+              schedulePush()
+              return
+            }
+            const remote = normalizeSuiteState(snapshot.data().suite)
+            const local = collectLocalSuite()
+            const next = mergeSuiteStates(remote, local)
+            applySuite(next)
+            if (!suiteStatesEqual(next, remote)) schedulePush()
+            else {
+              setStatus('synced')
+              setMessage('已同步')
+              setLastSyncedAt(Date.now())
+            }
+          } catch (error) {
+            console.error('Suite sync data could not be saved', error)
+            retryConnection(error)
           }
         }, (error) => {
           console.error('Suite sync listener failed', error)
-          if (!disposed) {
-            setStatus('error')
-            setMessage('同步连接中断')
-          }
+          retryConnection(error)
         })
       } catch (error) {
         console.error('Suite sync connection failed', error)
-        if (!disposed) {
-          setStatus('error')
-          setMessage(navigator.onLine ? '同步连接失败，请重试' : '当前离线')
-        }
+        retryConnection(error)
       }
     }
 
@@ -448,6 +460,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       session.disposed = true
       session.unsubscribe?.()
       if (session.timer) clearTimeout(session.timer)
+      if (retryTimer) clearTimeout(retryTimer)
     }
   }, [applySuite, collectLocalSuite, connectedCode, connectionAttempt, schedulePush])
 
@@ -475,6 +488,30 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     return () => window.removeEventListener('storage', onStorage)
   }, [connectedCode, schedulePush])
 
+  useEffect(() => {
+    const restored = () => {
+      // Invalidate once for the whole import, not once per subpage.
+      localRevisionRef.current += 1
+      setToolDataRevision(revision => revision + 1)
+      schedulePush()
+    }
+    window.addEventListener('suite-tools-restored', restored)
+    return () => window.removeEventListener('suite-tools-restored', restored)
+  }, [schedulePush])
+
+  const storeCode = useCallback((code: string) => {
+    try {
+      localStorage.setItem(SUITE_CODE_KEY, code)
+      try { localStorage.removeItem(DAILY_CODE_KEY) } catch { /* The saved suite code takes precedence. */ }
+      return true
+    } catch {
+      setStatus('error')
+      setMessage('同步码未能保存，请先导出备份，再检查浏览器存储空间或隐私设置。')
+      window.dispatchEvent(new Event('checkin-storage-error'))
+      return false
+    }
+  }, [])
+
   const connect = useCallback((rawCode = codeInput) => {
     const normalized = cleanSyncCode(rawCode)
     setCodeInputState(normalized)
@@ -483,23 +520,27 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       setMessage('同步码至少需要 12 位')
       return
     }
-    localStorage.setItem(SUITE_CODE_KEY, normalized)
-    localStorage.removeItem(DAILY_CODE_KEY)
+    if (!storeCode(normalized)) return
     if (normalized === connectedCode) setConnectionAttempt((attempt) => attempt + 1)
     else setConnectedCode(normalized)
-  }, [codeInput, connectedCode])
+  }, [codeInput, connectedCode, storeCode])
 
   const createAndConnect = useCallback(() => {
     const code = generateSyncCode()
+    if (!storeCode(code)) return
     setCodeInputState(code)
-    localStorage.setItem(SUITE_CODE_KEY, code)
-    localStorage.removeItem(DAILY_CODE_KEY)
     setConnectedCode(code)
-  }, [])
+  }, [storeCode])
 
   const disconnect = useCallback(() => {
-    localStorage.removeItem(SUITE_CODE_KEY)
-    localStorage.removeItem(DAILY_CODE_KEY)
+    try {
+      localStorage.removeItem(DAILY_CODE_KEY)
+      localStorage.removeItem(SUITE_CODE_KEY)
+    } catch {
+      setStatus('error')
+      setMessage('无法保存断开设置，请检查浏览器隐私设置后重试。')
+      return
+    }
     setConnectedCode('')
     setStatus('local')
     setMessage('已断开，数据仍保存在当前浏览器')
