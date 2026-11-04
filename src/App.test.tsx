@@ -208,7 +208,6 @@ test('places the synced tools first with daily at the front', () => {
 test.each([
   ['Learn Buffett', 'https://learnbuffett.com'],
   ['Munger Models', 'https://mungermodels.com'],
-  ['GoGoScrum', 'https://gogoscrum.com'],
   ['公众号编辑器', 'https://sange0613.github.io/xuwu-wechat-editor/'],
   ['图片拼贴', 'https://sange0613.github.io/xuwu-image-collage/'],
   ['图片转 PDF', 'https://sange0613.github.io/image-to-pdf-studio/'],

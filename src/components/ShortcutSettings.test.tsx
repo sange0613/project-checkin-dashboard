@@ -5,6 +5,19 @@ import App from '../App'
 import { shortcutEntries, sortShortcuts, defaultShortcuts, migrateAccountUrl } from './ShortcutBar'
 
 beforeEach(() => localStorage.clear())
+test('removes the project shortcut even from old synced settings while keeping other links', async () => {
+  const removed = { label: 'GoGoScrum', short: '项', href: 'https://gogoscrum.com/' }
+  const links = readShortcuts([JSON.stringify(removed), JSON.stringify({ label: '自定义', short: '自', href: 'https://example.com' })])
+  expect(links.map(link => link.href)).toEqual(['https://example.com'])
+  const state = (await import('../domain/types')).createInitialState()
+  state.shortcutConfig = [JSON.stringify(removed), ...defaultShortcuts.map(link => JSON.stringify(link))]
+  localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state }))
+  render(<App />)
+  expect(screen.queryByRole('link', { name: 'GoGoScrum' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '更多工具' }))
+  expect(screen.queryByRole('menuitem', { name: /GoGoScrum/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: /公众号编辑器/ })).toBeVisible()
+})
 test('orders integrated tools and external links together and persists after reload', async () => {
   const user = userEvent.setup()
   const { unmount } = render(<App />)

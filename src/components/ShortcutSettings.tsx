@@ -3,12 +3,13 @@ import { defaultShortcuts, migrateAccountUrl, shortcutEntries, sortShortcuts, ty
 
 export function readShortcuts(config?: string[]): Shortcut[] {
   if (!config) return defaultShortcuts
-  return config.flatMap((raw) => {
+  return config.flatMap((raw, index) => {
     try {
       const link = JSON.parse(raw) as Shortcut
       if (typeof link.label !== 'string' || typeof link.short !== 'string' || typeof link.href !== 'string') return []
-      if (!['https:', 'http:'].includes(new URL(link.href).protocol)) return []
-      return [{ ...link, href: migrateAccountUrl(link.href) }]
+      const url = new URL(link.href)
+      if (!['https:', 'http:'].includes(url.protocol) || ['gogoscrum.com', 'www.gogoscrum.com'].includes(url.hostname)) return []
+      return [{ ...link, ...(index >= 4 && link.pinned === undefined ? { pinned: false } : {}), href: migrateAccountUrl(link.href) }]
     } catch { return [] }
   })
 }
