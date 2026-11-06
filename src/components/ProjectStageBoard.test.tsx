@@ -169,3 +169,13 @@ test('automatically positions the gantt chart on today', async () => {
   await waitFor(() => expect(scrollTo).toHaveBeenCalled())
   expect(scrollTo.mock.calls.at(-1)?.[0].left).toBeGreaterThan(0)
 })
+
+test('binds a new schedule to one selected flow and keeps its Gantt while following actual tasks', async()=>{
+ const user=userEvent.setup(),initial=createInitialState(),onCreate=vi.fn(),onStageChange=vi.fn();
+ const flowline={ready:true,status:'流程进度已同步',at:1,cached:false,data:{projects:[{id:'source',name:'流程演示',flows:[{id:'design',name:'设计清单',stages:[{id:'phase',title:'深化图纸',status:'pending',planStart:'2026-11-06',planEnd:'2026-11-20',actualStartedAt:'',actualCompletedAt:'',tasks:[{id:'task',text:'节点详图',done:false}]}]}]}]}};
+ const props={title:initial.stageBoardTitle,labels:initial.stageLabels,onTitleChange:vi.fn(),onLabelsChange:vi.fn(),onCreate,onUpdate:vi.fn(),onDelete:vi.fn(),onStageChange,flowline,onLink:vi.fn()};
+ const {rerender}=render(<ProjectStageBoard {...props} projects={[]}/>);
+ await user.click(screen.getByRole('button',{name:'新建项目'}));await user.type(screen.getByRole('textbox',{name:'项目名称'}),'联动排期');await user.selectOptions(screen.getByLabelText('阶段进度来源'),'follow');await user.selectOptions(screen.getByLabelText('关联流程项目'),'source');await user.selectOptions(screen.getByLabelText('关联设计清单'),'design');await user.click(screen.getByRole('button',{name:'保存'}));expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({name:'联动排期'}),{projectId:'source',flowId:'design',mode:'follow'});
+ rerender(<ProjectStageBoard {...props} projects={[{id:'p',name:'联动排期',stageIndex:0,createdAt:'2026-11-06',designStart:'2026-11-01',designEnd:'2026-12-30'}]} preferences={{'flowline-link:p':JSON.stringify({projectId:'source',flowId:'design',mode:'follow'})}}/>);
+ expect(screen.getByRole('region',{name:'项目排期'})).toBeVisible();expect(screen.getByText('下一项：节点详图')).toBeVisible();expect(screen.getByRole('button',{name:'深化图纸，当前阶段'})).toBeDisabled();expect(screen.getByRole('link',{name:'打开 联动排期 对应流程'})).toHaveAttribute('href',expect.stringContaining('project=source&flow=design&stage=phase&task=task'));expect(screen.queryByLabelText('阶段图例')).not.toBeInTheDocument();expect(onStageChange).not.toHaveBeenCalled();
+});

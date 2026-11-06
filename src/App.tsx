@@ -24,6 +24,9 @@ import type { AppState, Project, StageProjectDraft, ViewMode } from './domain/ty
 import { toDateKey } from './domain/dateRanges'
 import { exportFullBackup, parseFullBackup, restoreToolBackups } from './storage/suiteBackup'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
+import { useFlowlineBridge } from './hooks/useFlowlineBridge'
+import { projectDisplay, readBinding, linkKey } from './domain/flowline'
+import type { FlowBinding } from './domain/flowline'
 import { useSuiteSync } from '@app-sync'
 import { useTodoBridge } from './hooks/useTodoBridge'
 import './styles.css'
@@ -151,6 +154,7 @@ export default function App() {
   const [loadedToolIds, setLoadedToolIds] = useState<IntegratedToolId[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
   const suiteSync = useSuiteSync(state, setState)
+  const flowline = useFlowlineBridge(suiteSync.connectedCode)
   useTodoBridge(suiteSync.toolDataRevision, suiteSync.message)
   const currentDay = toDateKey(new Date(clock))
   const today = useMemo(() => new Date(`${currentDay}T12:00:00`), [currentDay])
@@ -209,8 +213,8 @@ export default function App() {
     setStageFilterRequest({ filter, at: Date.now() })
     requestAnimationFrame(() => document.getElementById('section-stages')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }))
   }
-  const stages = state.stageProjects.map(hydrateStageProject)
-  const pendingCount = stages.filter(p => !p.taskCompleted && p.taskStart <= currentDay && p.taskEnd >= currentDay).length
+  const stages = state.stageProjects.map(p => projectDisplay(p, readBinding(state.preferences?.[linkKey(p.id)]), flowline))
+  const pendingCount = stages.filter(p => !p.taskCompleted && (p.flowline ? !p.flowline.allDone : p.taskStart <= currentDay && p.taskEnd >= currentDay)).length
   const dueCount = stages.filter(p => !p.taskCompleted && p.taskEnd >= currentDay && p.taskEnd <= addStageDays(currentDay, 7)).length
   const todayCount = state.projects.filter(p => (state.checkins[p.id] ?? []).includes(currentDay)).length
 
@@ -324,10 +328,8 @@ export default function App() {
       : category),
   }))
 
-  const addStageProject = (draft: StageProjectDraft) => update((current) => ({
-    ...current,
-    stageProjects: [...current.stageProjects, { ...draft, id: makeId(), createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() }],
-  }))
+  const addStageProject = (draft: StageProjectDraft, binding?: FlowBinding | null) => {const id=makeId();update(current=>({...current,stageProjects:[...current.stageProjects,{...draft,id,createdAt:new Date().toISOString(),modifiedAt:new Date().toISOString()}],preferences:binding?{...current.preferences,[linkKey(id)]:JSON.stringify(binding)}:current.preferences}))}
+
   const updateStageProject = (id: string, draft: StageProjectDraft) => update((current) => ({
     ...current,
     preferences: current.stageProjects.find(p => p.id === id) ? withStageEvent(current, current.stageProjects.find(p => p.id === id)!, { ...current.stageProjects.find(p => p.id === id)!, ...draft }) : current.preferences ?? {},
@@ -343,6 +345,7 @@ export default function App() {
       : project),
   }))
   const deleteStageProject = (id: string) => update((current) => ({ ...current, stageProjects: current.stageProjects.filter((project) => project.id !== id) }))
+  const bindFlowline = (id: string, binding: FlowBinding | null) => setPreference(linkKey(id), binding ? JSON.stringify(binding) : '')
   const renameStageBoard = (stageBoardTitle: string) => update((current) => ({ ...current, stageBoardTitle }))
   const renameStageLabels = (stageLabels: string[]) => update((current) => ({ ...current, stageLabels }))
   const toggleTheme = () => update((current) => ({ ...current, theme: actualTheme === 'dark' ? 'light' : 'dark' }))
@@ -468,6 +471,9 @@ export default function App() {
         <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} pinnedIds={state.projects.filter(p => state.preferences?.[`pin:${p.id}`]).map(p => p.id)} onPin={id => setPreference(`pin:${id}`, !state.preferences?.[`pin:${id}`])} onArchive={id => update(current => ({ ...current, projects: current.projects.map(p => p.id === id ? { ...p, archived: !p.archived } : p) }))} onReorder={reorderProject} />
         <CollapsibleSection id="stages" title="阶段与排期">
         <ProjectStageBoard
+          flowline={flowline}
+          preferences={state.preferences}
+          onLink={bindFlowline}
           filterRequest={stageFilterRequest}
           title={state.stageBoardTitle}
           labels={state.stageLabels}

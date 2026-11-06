@@ -60,8 +60,8 @@ export function stageDayDiff(start: string, end: string): number {
 }
 
 export function ganttDateWindow(projects: { designStart: string; designEnd: string; taskStart: string; taskEnd: string }[], today: string) {
-  const earliest = [today, ...projects.flatMap(project => [project.designStart, project.taskStart])].sort()[0]
-  const latest = [today, ...projects.flatMap(project => [project.designEnd, project.taskEnd])].sort().at(-1) ?? today
+  const earliest = [today, ...projects.flatMap(project => [project.designStart, project.taskStart]).filter(Boolean)].sort()[0]
+  const latest = [today, ...projects.flatMap(project => [project.designEnd, project.taskEnd]).filter(Boolean)].sort().at(-1) ?? today
   const start = stageDayDiff(earliest, latest) >= 730 && earliest < addStageDays(today, -365) ? addStageDays(today, -365) : earliest
   const end = latest > addStageDays(start, 729) ? addStageDays(start, 729) : latest
   return { start, end }
