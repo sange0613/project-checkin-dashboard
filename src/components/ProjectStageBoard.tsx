@@ -51,15 +51,21 @@ function dateRange(start: string, end: string) {
   return Array.from({ length }, (_, index) => addStageDays(start, index))
 }
 
+function validNodeDates(start:string,end:string){
+  return /^\d{4}-\d{2}-\d{2}$/.test(start)&&/^\d{4}-\d{2}-\d{2}$/.test(end)&&Number.isFinite(Date.parse(start))&&Number.isFinite(Date.parse(end))&&start<=end
+}
+
 function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: string[] }) {
+  const [expanded,setExpanded]=useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const hydratedProjects = useMemo(() => projects.map(p=>({...hydrateStageProject(p),...p})), [projects])
   const today = toStageDate(new Date())
   const chart = useMemo(() => {
     if (!hydratedProjects.length) return null
-    const { start, end } = ganttDateWindow(hydratedProjects, today)
+    const ranges=hydratedProjects.flatMap(p=>expanded.includes(p.id)?(p.flowline?.stages||[]).filter(s=>validNodeDates(s.planStart,s.planEnd)).map(s=>({designStart:s.planStart,designEnd:s.planEnd,taskStart:s.planStart,taskEnd:s.planEnd})):[])
+    const { start, end } = ganttDateWindow([...hydratedProjects,...ranges], today)
     return { start, end, days: dateRange(start, end) }
-  }, [hydratedProjects, today])
+  }, [hydratedProjects, today, expanded])
 
   const dayWidth = 24
   const labelWidth = 168
@@ -106,14 +112,24 @@ function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: 
             const taskLeft = labelWidth + stageDayDiff(chart.start, taskStart) * dayWidth
             const taskWidth = taskStart&&taskEnd?Math.max(0, (stageDayDiff(taskStart, taskEnd) + 1) * dayWidth):0
             return (
-              <div className="stage-gantt-row" key={project.id}>
-                <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span><strong>{project.name}</strong><small>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':''}</small></span></div>
+              <div key={project.id}><div className="stage-gantt-row">
+                <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span>{project.flowline?.stages.length?<button type="button" className="node-expand" aria-expanded={expanded.includes(project.id)} onClick={()=>setExpanded(ids=>ids.includes(project.id)?ids.filter(id=>id!==project.id):[...ids,project.id])}>{expanded.includes(project.id)?'▾':'▸'} {project.name}</button>:<strong>{project.name}</strong>}<small>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':''}</small></span></div>
                 {project.flowline?.available&&[project.flowline.actualStartedAt,project.flowline.actualCompletedAt].map((date,index)=>{if(!date||!Number.isFinite(Date.parse(date)))return null;const day=toStageDate(new Date(date)),position=chart.days.indexOf(day);return position>=0?<i key={index} className="stage-actual-mark" data-finished={index===1||undefined} title={`${index?'实际完成':'首次记录进展'} ${day}`} style={{left:labelWidth+position*dayWidth+dayWidth/2}}/>:null})}
                 <div className="stage-gantt-grid" style={{ left: labelWidth, width: chartWidth, backgroundSize: `${dayWidth}px 100%` }} />
                 {designWidth > 0 && <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }}>{project.flowline?.available&&<i className="stage-design-fill" style={{width: `${project.flowline.percent}%`}} />}</div>}
                 {taskWidth > 0 && <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}>{project.flowline?.available&&<i className="stage-task-fill" style={{width:`${project.flowline.nodePercent}%`}}/>}</div>}
                 <div className="stage-gantt-label" style={{left:labelWidth,width:chartWidth}}><span style={{left:labelWidth+8}} title={displayLabel(project,labels)}>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':project.taskCompleted?' · 已完结':''}</span></div>
               </div>
+              {expanded.includes(project.id)&&project.flowline?.stages.map(node=>{
+                const planned=validNodeDates(node.planStart,node.planEnd)
+                const start=node.planStart<chart.start?chart.start:node.planStart
+                const end=node.planEnd>chart.end?chart.end:node.planEnd
+                return <div className="stage-gantt-row node-row" key={node.id}>
+                  <div className="stage-gantt-project" style={{width:labelWidth}}><span><strong>{node.title}</strong><small>{planned?shortDate(node.planStart)+' — '+shortDate(node.planEnd):'待排期'}</small></span></div>
+                  <div className="stage-gantt-grid" style={{left:labelWidth,width:chartWidth,backgroundSize:dayWidth+'px 100%'}}/>
+                  {planned&&start<=end&&<div className="stage-task-bar" title={node.title+' · '+node.planStart+' — '+node.planEnd} style={{left:labelWidth+stageDayDiff(chart.start,start)*dayWidth,width:(stageDayDiff(start,end)+1)*dayWidth}}><span>{node.title}</span></div>}
+                </div>
+              })}</div>
             )
           })}
         </div>

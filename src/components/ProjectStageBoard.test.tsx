@@ -178,4 +178,10 @@ test('binds a new schedule to one selected flow and keeps its Gantt while follow
  await user.click(screen.getByRole('button',{name:'新建项目'}));await user.type(screen.getByRole('textbox',{name:'项目名称'}),'联动排期');await user.selectOptions(screen.getByLabelText('阶段进度来源'),'follow');await user.selectOptions(screen.getByLabelText('关联流程项目'),'source');await user.selectOptions(screen.getByLabelText('关联设计清单'),'design');await user.click(screen.getByRole('button',{name:'保存'}));expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({name:'联动排期'}),{projectId:'source',flowId:'design',mode:'follow'});
  rerender(<ProjectStageBoard {...props} projects={[{id:'p',name:'联动排期',stageIndex:0,createdAt:'2026-11-06',designStart:'2026-11-01',designEnd:'2026-12-30'}]} preferences={{'flowline-link:p':JSON.stringify({projectId:'source',flowId:'design',mode:'follow'})}}/>);
  expect(screen.getByRole('region',{name:'项目排期'})).toBeVisible();expect(screen.getByText('下一项：节点详图')).toBeVisible();expect(screen.getByRole('button',{name:'深化图纸，当前阶段'})).toBeDisabled();expect(screen.getByRole('link',{name:'打开 联动排期 对应流程'})).toHaveAttribute('href',expect.stringContaining('project=source&flow=design&stage=phase&task=task'));expect(screen.queryByLabelText('阶段图例')).not.toBeInTheDocument();expect(onStageChange).not.toHaveBeenCalled();
+ const expand=screen.getByRole('button',{name:/▸ 联动排期/});
+ await user.click(expand);
+ expect(screen.getByTitle('深化图纸 · 2026-11-06 — 2026-11-20')).toBeVisible();
+ await user.click(expand);
+ expect(screen.queryByTitle('深化图纸 · 2026-11-06 — 2026-11-20')).toBeNull();
+
 });
