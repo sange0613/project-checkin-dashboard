@@ -11,7 +11,7 @@ import {
   ganttDateWindow,
 } from '../domain/projectStages'
 import { DEFAULT_STAGE_LABELS, type StageProject, type StageProjectDraft } from '../domain/types'
-import { projectDisplay, displayPercent, displayLabel, readBinding, linkKey, listProgress, flowlineUrl } from '../domain/flowline'
+import { scheduleProjects, displayPercent, displayLabel, readBinding, linkKey, listProgress, flowlineUrl } from '../domain/flowline'
 import type { FlowBinding, FlowState, StageDisplay } from '../domain/flowline'
 import type { SyncSettingValue } from '../domain/types'
 import { EditableText } from './EditableText'
@@ -116,7 +116,7 @@ function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: 
                 <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span>{project.flowline?.stages.length?<button type="button" className="node-expand" aria-expanded={expanded.includes(project.id)} onClick={()=>setExpanded(ids=>ids.includes(project.id)?ids.filter(id=>id!==project.id):[...ids,project.id])}>{expanded.includes(project.id)?'▾':'▸'} {project.name}</button>:<strong>{project.name}</strong>}<small>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':''}</small></span></div>
                 {project.flowline?.available&&[project.flowline.actualStartedAt,project.flowline.actualCompletedAt].map((date,index)=>{if(!date||!Number.isFinite(Date.parse(date)))return null;const day=toStageDate(new Date(date)),position=chart.days.indexOf(day);return position>=0?<i key={index} className="stage-actual-mark" data-finished={index===1||undefined} title={`${index?'实际完成':'首次记录进展'} ${day}`} style={{left:labelWidth+position*dayWidth+dayWidth/2}}/>:null})}
                 <div className="stage-gantt-grid" style={{ left: labelWidth, width: chartWidth, backgroundSize: `${dayWidth}px 100%` }} />
-                {designWidth > 0 && <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }}>{project.flowline?.available&&<i className="stage-design-fill" style={{width: `${project.flowline.percent}%`}} />}</div>}
+                {project.designStart && project.designEnd && designWidth > 0 && <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }}>{project.flowline?.available&&<i className="stage-design-fill" style={{width: `${project.flowline.percent}%`}} />}</div>}
                 {taskWidth > 0 && <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}>{project.flowline?.available&&<i className="stage-task-fill" style={{width:`${project.flowline.nodePercent}%`}}/>}</div>}
                 <div className="stage-gantt-label" style={{left:labelWidth,width:chartWidth}}><span style={{left:labelWidth+8}} title={displayLabel(project,labels)}>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':project.taskCompleted?' · 已完结':''}</span></div>
               </div>
@@ -229,7 +229,7 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
   const [stageEditorOpen, setStageEditorOpen] = useState(false)
   useEffect(() => { if (filterRequest) { setFilter(filterRequest.filter); setQuery(''); setSort('taskEnd'); setSortDirection('asc') } }, [filterRequest])
   const projectListRef = useRef<HTMLDivElement>(null)
-  const hydratedProjects = useMemo(() => projects.map(p=>projectDisplay(p,readBinding(preferences[linkKey(p.id)]),flowline)), [projects,preferences,flowline])
+  const hydratedProjects = useMemo(() => scheduleProjects(projects,preferences,flowline), [projects,preferences,flowline])
   const today = toStageDate(new Date())
   const weekEnd = addStageDays(today, 7)
   const visibleProjects = useMemo(() => {
@@ -275,7 +275,7 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
         <button type="button" className="primary-button" onClick={() => setEditingId('new')}><Plus size={15} />新建项目</button>
       </div>
 
-      {onLink&&<p className="flowline-reader-status">{flowline.status}{flowline.at?` · ${new Date(flowline.at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}`:''}{flowline.cached?' · 上次记录':''}<span>在项目编辑中选择“跟随流程管理”</span></p>}
+      {onLink&&<p className="flowline-reader-status">{flowline.status}{flowline.at?` · ${new Date(flowline.at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}`:''}{flowline.cached?' · 上次记录':''}<span>含设计项目流程的项目自动显示</span></p>}
       <div className="stage-portfolio-tools">
         <label><Search size={15} /><input aria-label="搜索阶段项目" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目、客户或地点" /></label>
         <div className="stage-select-wrap"><select aria-label="筛选阶段项目" value={filter} onChange={(event) => setFilter(event.target.value as Filter)}><option value="active">待推进</option><option value="dueSoon">7天内到期</option><option value="all">全部项目</option><option value="complete">已完成</option></select><ChevronDown size={14} /></div>
@@ -303,14 +303,14 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
         {visibleProjects.map((project) => {
           const percent = displayPercent(project)
           return (
-            <article className="stage-project-row" data-due={!project.taskCompleted && project.taskEnd >= today && project.taskEnd <= weekEnd || undefined} key={project.id} onClick={() => setEditingId(project.id)}>
+            <article className="stage-project-row" data-due={!project.taskCompleted && project.taskEnd >= today && project.taskEnd <= weekEnd || undefined} key={project.id} onClick={() => {if(!project.automatic)setEditingId(project.id)}}>
               <div className="stage-project-name"><strong>{project.name}</strong>{project.flowline&&<a href={project.flowline.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} aria-label={`打开 ${project.name} 对应流程`}>查看流程 ↗</a>}<span>{[project.client, project.location].filter(Boolean).join(' / ') || '未填写客户与地点'}</span></div>
               <div className="stage-design-period"><span>{shortDate(project.designStart)}</span><i /><span>{shortDate(project.designEnd)}</span></div>
               <div className="stage-current-stage"><i>{(project.flowline?.index??project.stageIndex) + 1}</i><span>{displayLabel(project,labels)}{project.flowline&&<small>自动联动{project.flowline.projectName?' · '+project.flowline.projectName:''}</small>}</span></div>
               <time>{project.flowline&&!project.flowline.scheduled?'待排期':<>{shortDate(project.taskStart)} — {shortDate(project.taskEnd)}</>}{project.flowline?.next&&<small>下一项：{project.flowline.next}</small>}{project.flowline?.message&&<small>{project.flowline.message}</small>}{!project.flowline&&isPendingProject(project, today)?<small>今天待推进</small>:null}</time>
               <StageRail project={project} labels={labels} onChange={(index) => onStageChange(project.id, index)} />
               <strong className="stage-percent">{percent===null?'—':percent+'%'}{project.flowline?.available&&<small>{project.flowline.completed}/{project.flowline.total}</small>}</strong>
-              <button type="button" className="stage-edit-button" aria-label={`编辑阶段项目 ${project.name}`} onClick={(event) => { event.stopPropagation(); setEditingId(project.id) }}><Pencil size={14} /></button>
+              {!project.automatic&&<button type="button" className="stage-edit-button" aria-label={`编辑阶段项目 ${project.name}`} onClick={(event) => { event.stopPropagation(); setEditingId(project.id) }}><Pencil size={14} /></button>}
             </article>
           )
         })}

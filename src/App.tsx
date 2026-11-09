@@ -25,7 +25,7 @@ import { toDateKey } from './domain/dateRanges'
 import { exportFullBackup, parseFullBackup, restoreToolBackups } from './storage/suiteBackup'
 import { createLocalCheckinRepository } from './storage/localCheckinRepository'
 import { useFlowlineBridge } from './hooks/useFlowlineBridge'
-import { projectDisplay, readBinding, linkKey } from './domain/flowline'
+import { scheduleProjects, linkKey } from './domain/flowline'
 import type { FlowBinding } from './domain/flowline'
 import { useSuiteSync } from '@app-sync'
 import { useTodoBridge } from './hooks/useTodoBridge'
@@ -213,7 +213,7 @@ export default function App() {
     setStageFilterRequest({ filter, at: Date.now() })
     requestAnimationFrame(() => document.getElementById('section-stages')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }))
   }
-  const stages = state.stageProjects.map(p => projectDisplay(p, readBinding(state.preferences?.[linkKey(p.id)]), flowline))
+  const stages = scheduleProjects(state.stageProjects,state.preferences||{},flowline)
   const pendingCount = stages.filter(p => !p.taskCompleted && (p.flowline ? !p.flowline.allDone : p.taskStart <= currentDay && p.taskEnd >= currentDay)).length
   const dueCount = stages.filter(p => !p.taskCompleted && p.taskEnd >= currentDay && p.taskEnd <= addStageDays(currentDay, 7)).length
   const todayCount = state.projects.filter(p => (state.checkins[p.id] ?? []).includes(currentDay)).length

@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {projectDisplay,listProgress,readBinding,linkKey,flowlineUrl} from './flowline'
+import {scheduleProjects,projectDisplay,listProgress,readBinding,linkKey,flowlineUrl} from './flowline'
 import type {FlowState,FlowBinding,FlowStage} from './flowline'
 import type {StageProject} from './types'
 const stage=(id:string,title:string,tasks:boolean[],extra:Partial<FlowStage>={}):FlowStage=>({id,title,status:'pending',planStart:'',planEnd:'',actualStartedAt:'',actualCompletedAt:'',tasks:tasks.map((done,i)=>({id:id+i,text:title+'事项'+i,done})),...extra})
@@ -13,4 +13,17 @@ describe('流程与排期联动',()=>{
  it('retains a missing binding without showing stale manual progress',()=>{const view=projectDisplay(project,binding,state([]));expect(view.flowline?.label).toBe('尚未添加节点');const missing=projectDisplay(project,{...binding,flowId:'removed'},state([]));expect(missing.flowline?.percent).toBeNull();expect(missing.taskStart).toBe('');expect(missing.designStart).toBe(project.designStart)})
  it('uses stable IDs after rename and restores manual mode',()=>{const s=state([stage('a','改名后',[false])]);s.data.projects[0].name='新项目名';expect(projectDisplay(project,binding,s).flowline?.label).toBe('改名后');const manual=projectDisplay(project,{...binding,mode:'manual'},s);expect(manual.flowline).toBeUndefined();expect(manual.taskStart).toBe(project.taskStart)})
  it('round-trips bindings as syncable preferences without putting code in links',()=>{const preferences={[linkKey(project.id)]:JSON.stringify(binding)};expect(readBinding(JSON.parse(JSON.stringify(preferences))[linkKey(project.id)])).toEqual(binding);expect(readBinding('broken')).toBeNull();expect(flowlineUrl(binding)).toBe('https://sange0613.github.io/flowline-dashboard/#project=source&flow=design')})
+})
+
+it('automatically schedules only design projects with separate project and node dates',()=>{
+ const workspace=state([stage('a','方案',[false],{planStart:'2026-11-10',planEnd:'2026-11-15'})])
+ const source=workspace.data.projects[0]
+ Object.assign(source,{projectStart:'2026-11-01',projectEnd:'2026-12-01'})
+ source.flows[1].isDesign=true
+ const auto=scheduleProjects([],{},workspace)
+ expect(auto).toHaveLength(1)
+ expect(auto[0]).toMatchObject({automatic:true,designStart:'2026-11-01',designEnd:'2026-12-01',taskStart:'2026-11-10',taskEnd:'2026-11-15'})
+ expect(scheduleProjects([project],{[linkKey(project.id)]:JSON.stringify(binding)},workspace)).toHaveLength(1)
+ source.flows.pop()
+ expect(scheduleProjects([],{},workspace)).toHaveLength(0)
 })
