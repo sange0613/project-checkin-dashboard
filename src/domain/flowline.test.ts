@@ -27,3 +27,23 @@ it('automatically schedules only design projects with separate project and node 
  source.flows.pop()
  expect(scheduleProjects([],{},workspace)).toHaveLength(0)
 })
+
+it('follows renovation only after service completion and returns to design after undo',()=>{
+ const service=stage('service','服务完结',[],{status:'done'})
+ const workspace=state([service])
+ const source=workspace.data.projects[0]
+ source.flows[1].isDesign=true
+ const view=()=>scheduleProjects([],{},workspace)[0]
+ expect(view().flowline?.allDone).toBe(true)
+ const preparation={id:'prep',name:'03装修准备事项',stages:[stage('old','已办',[true]),stage('next','水电交底',[true,false],{planStart:'2026-11-15',planEnd:'2026-11-18'})]}
+ source.flows.push(preparation)
+ expect(view().flowline).toMatchObject({label:'水电交底',next:'水电交底事项1',percent:67,allDone:false,stages:preparation.stages})
+ expect(view().flowline?.url).toContain('flow=prep&stage=next')
+ expect(view().taskStart).toBe('2026-11-15')
+ const linked=scheduleProjects([project],{[linkKey(project.id)]:JSON.stringify(binding)},workspace)
+ expect(linked).toHaveLength(1);expect(linked[0].flowline?.label).toBe('水电交底')
+ service.status='pending';expect(view().flowline?.label).toBe('服务完结')
+ service.title='交付';service.tasks=[{id:'last',text:'服务完结',done:true}]
+ expect(view().flowline?.label).toBe('水电交底')
+ preparation.stages[1].tasks[1].done=true;expect(view().taskCompleted).toBe(true)
+})
