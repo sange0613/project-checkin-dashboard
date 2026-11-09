@@ -60,15 +60,29 @@ function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: 
   const scrollRef = useRef<HTMLDivElement>(null)
   const hydratedProjects = useMemo(() => projects.map(p=>({...hydrateStageProject(p),...p})), [projects])
   const today = toStageDate(new Date())
+  const dayWidth = 24
+  const labelWidth = 168
+  const [viewportWidth,setViewportWidth]=useState(0)
+  const hasRows=hydratedProjects.length>0
+  useEffect(()=>{
+    const viewport=scrollRef.current
+    if(!viewport)return
+    const measure=()=>setViewportWidth(viewport.clientWidth)
+    measure()
+    if(typeof ResizeObserver==='undefined')return
+    const observer=new ResizeObserver(measure)
+    observer.observe(viewport)
+    return ()=>observer.disconnect()
+  },[hasRows])
   const chart = useMemo(() => {
     if (!hydratedProjects.length) return null
     const ranges=hydratedProjects.flatMap(p=>expanded.includes(p.id)?(p.flowline?.stages||[]).filter(s=>validNodeDates(s.planStart,s.planEnd)).map(s=>({designStart:s.planStart,designEnd:s.planEnd,taskStart:s.planStart,taskEnd:s.planEnd})):[])
-    const { start, end } = ganttDateWindow([...hydratedProjects,...ranges], today)
+    const { start, end: lastDate } = ganttDateWindow([...hydratedProjects,...ranges], today)
+    const visibleDays=Math.max(1,Math.ceil((viewportWidth-labelWidth)/dayWidth))
+    const end=[lastDate,addStageDays(start,visibleDays-1)].sort()[1]
     return { start, end, days: dateRange(start, end) }
-  }, [hydratedProjects, today, expanded])
+  }, [hydratedProjects, today, expanded, viewportWidth])
 
-  const dayWidth = 24
-  const labelWidth = 168
   const todayIndex = chart?.days.indexOf(today) ?? -1
   const todayScrollLeft = () => Math.max(0, labelWidth + todayIndex * dayWidth - (scrollRef.current?.clientWidth ?? 0) / 2)
 
@@ -113,12 +127,11 @@ function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: 
             const taskWidth = taskStart&&taskEnd?Math.max(0, (stageDayDiff(taskStart, taskEnd) + 1) * dayWidth):0
             return (
               <div key={project.id}><div className="stage-gantt-row">
-                <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span>{project.flowline?.stages.length?<button type="button" className="node-expand" aria-expanded={expanded.includes(project.id)} onClick={()=>setExpanded(ids=>ids.includes(project.id)?ids.filter(id=>id!==project.id):[...ids,project.id])}>{expanded.includes(project.id)?'▾':'▸'} {project.name}</button>:<strong>{project.name}</strong>}<small>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':''}</small></span></div>
+                <div className="stage-gantt-project" style={{ width: labelWidth }}><i /><span>{project.flowline?.stages.length?<button type="button" className="node-expand" title={project.name} aria-label={`${expanded.includes(project.id)?'▾':'▸'} ${project.name}`} aria-expanded={expanded.includes(project.id)} onClick={()=>setExpanded(ids=>ids.includes(project.id)?ids.filter(id=>id!==project.id):[...ids,project.id])}><strong>{project.name}</strong></button>:<strong>{project.name}</strong>}<small>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':''}</small></span></div>
                 {project.flowline?.available&&[project.flowline.actualStartedAt,project.flowline.actualCompletedAt].map((date,index)=>{if(!date||!Number.isFinite(Date.parse(date)))return null;const day=toStageDate(new Date(date)),position=chart.days.indexOf(day);return position>=0?<i key={index} className="stage-actual-mark" data-finished={index===1||undefined} title={`${index?'实际完成':'首次记录进展'} ${day}`} style={{left:labelWidth+position*dayWidth+dayWidth/2}}/>:null})}
                 <div className="stage-gantt-grid" style={{ left: labelWidth, width: chartWidth, backgroundSize: `${dayWidth}px 100%` }} />
-                {project.designStart && project.designEnd && designWidth > 0 && <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }}>{project.flowline?.available&&<i className="stage-design-fill" style={{width: `${project.flowline.percent}%`}} />}</div>}
-                {taskWidth > 0 && <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}>{project.flowline?.available&&<i className="stage-task-fill" style={{width:`${project.flowline.nodePercent}%`}}/>}</div>}
-                <div className="stage-gantt-label" style={{left:labelWidth,width:chartWidth}}><span style={{left:labelWidth+8}} title={displayLabel(project,labels)}>{displayLabel(project,labels)}{project.flowline&&!project.flowline.scheduled?' · 待排期':project.taskCompleted?' · 已完结':''}</span></div>
+                {project.designStart && project.designEnd && designWidth > 0 && <div className="stage-design-bar" title={`设计周期 ${project.designStart} 至 ${project.designEnd}`} style={{ left: designLeft, width: designWidth }}>{project.flowline?.available&&<i className="stage-design-fill" style={{width: `${project.flowline.percent}%`}} />}{!taskWidth&&<span className="design-stage-name">{displayLabel(project,labels)} · 待排期</span>}</div>}
+                {taskWidth > 0 && <div className="stage-task-bar" data-completed={project.taskCompleted || undefined} title={`当前任务 ${project.taskStart} 至 ${project.taskEnd}${project.taskCompleted ? '（已完结）' : ''}`} style={{ left: taskLeft, width: taskWidth }}>{project.flowline?.available&&<i className="stage-task-fill" style={{width:`${project.flowline.nodePercent}%`}}/>}<span title={displayLabel(project,labels)}>{displayLabel(project,labels)}</span></div>}
               </div>
               {expanded.includes(project.id)&&project.flowline?.stages.map(node=>{
                 const planned=validNodeDates(node.planStart,node.planEnd)
@@ -296,7 +309,6 @@ export function ProjectStageBoard({ title, labels, projects, onTitleChange, onLa
         <div><strong>{visibleProjects.length}</strong> 个项目 <span>·</span> {active} 个待推进 <span>·</span> {complete} 个已完成</div>
         {(!hydratedProjects.length||hydratedProjects.some(p=>!p.flowline))?<button type="button" onClick={() => setStageEditorOpen(true)}><Pencil size={12} />编辑阶段</button>:<small>阶段随流程清单自动更新</small>}
       </div>
-      {(!hydratedProjects.length||hydratedProjects.some(p=>!p.flowline))&&<div className="stage-legend" aria-label="阶段图例">{labels.map((label, index) => <span key={`${index}-${label}`}><i>{index + 1}</i>{label}</span>)}</div>}
 
       <div className="stage-project-table" aria-label="阶段项目列表" ref={projectListRef}>
         <div className="stage-project-head"><span>项目</span><button type="button" onClick={() => selectSort('designStart')}>设计周期<ArrowDownUp size={11} /></button><button type="button" onClick={() => selectSort('progress')}>当前阶段<ArrowDownUp size={11} /></button><span>当前任务</span><span>阶段进度</span><span>进度</span><span /></div>
