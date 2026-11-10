@@ -57,6 +57,7 @@ function validNodeDates(start:string,end:string){
 
 function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: string[] }) {
   const [expanded,setExpanded]=useState<string[]>([])
+  const [note,setNote]=useState<{title:string;remark:string}|null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const hydratedProjects = useMemo(() => projects.map(p=>({...hydrateStageProject(p),...p})), [projects])
   const today = toStageDate(new Date())
@@ -101,7 +102,7 @@ function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: 
   }
 
   return (
-    <section className="stage-gantt-section" aria-label="项目排期">
+    <section className="stage-gantt-section" aria-label="项目排期">{note&&<div className="gantt-note-backdrop" onClick={()=>setNote(null)}><div className="gantt-note" role="dialog" aria-modal="true" aria-label="阶段备注" onClick={e=>e.stopPropagation()}><button type="button" onClick={()=>setNote(null)} aria-label="关闭">×</button><strong>{note.title}</strong><p>{note.remark||'暂无阶段备注'}</p></div></div>}
       <div className="stage-gantt-heading">
         <div><h3>项目排期</h3><p>浅色为设计周期，深色为当前任务；填色为实际进度</p></div>
         <div><span>{acrossYears ? chart.start.replaceAll('-', '/') : shortDate(chart.start)} — {acrossYears ? chart.end.replaceAll('-', '/') : shortDate(chart.end)}</span><button type="button" onClick={locateToday}><CalendarDays size={14} />定位今天</button></div>
@@ -138,9 +139,9 @@ function ProjectGantt({ projects, labels }: { projects: StageDisplay[]; labels: 
                 const start=node.planStart<chart.start?chart.start:node.planStart
                 const end=node.planEnd>chart.end?chart.end:node.planEnd
                 return <div className="stage-gantt-row node-row" key={node.id}>
-                  <div className="stage-gantt-project" style={{width:labelWidth}}><span><strong>{node.title}</strong><small>{planned?shortDate(node.planStart)+' — '+shortDate(node.planEnd):'待排期'}</small></span></div>
+                  <div className="stage-gantt-project" style={{width:labelWidth}}><span><button type="button" className="node-expand" onClick={()=>setNote({title:node.title,remark:node.remark||''})}><strong>{node.title}{node.remark?' · 备注':''}</strong></button><small>{planned?shortDate(node.planStart)+' — '+shortDate(node.planEnd):'待排期'}</small></span></div>
                   <div className="stage-gantt-grid" style={{left:labelWidth,width:chartWidth,backgroundSize:dayWidth+'px 100%'}}/>
-                  {planned&&start<=end&&<div className="stage-task-bar" title={node.title+' · '+node.planStart+' — '+node.planEnd} style={{left:labelWidth+stageDayDiff(chart.start,start)*dayWidth,width:(stageDayDiff(start,end)+1)*dayWidth}}><span>{node.title}</span></div>}
+                  {planned&&start<=end&&<button type="button" className="stage-task-bar gantt-note-trigger" onClick={()=>setNote({title:node.title,remark:node.remark||''})} title={node.title+' · '+node.planStart+' — '+node.planEnd} style={{left:labelWidth+stageDayDiff(chart.start,start)*dayWidth,width:(stageDayDiff(start,end)+1)*dayWidth}}><span>{node.title}</span></button>}
                 </div>
               })}</div>
             )

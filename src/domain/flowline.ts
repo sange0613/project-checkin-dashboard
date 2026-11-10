@@ -1,7 +1,7 @@
 import type { StageProject, SyncSettingValue } from './types'
 import { hydrateStageProject, stagePercent } from './projectStages'
 export type FlowTask={id:string;text:string;done:boolean}
-export type FlowStage={id:string;title:string;status:string;planStart:string;planEnd:string;actualStartedAt:string;actualCompletedAt:string;tasks:FlowTask[]}
+export type FlowStage={id:string;title:string;remark?:string;status:string;planStart:string;planEnd:string;actualStartedAt:string;actualCompletedAt:string;tasks:FlowTask[]}
 export type FlowList={isDesign?:boolean;id:string;name:string;stages:FlowStage[]}
 export type FlowProject={projectStart?:string;projectEnd?:string;id:string;name:string;flows:FlowList[]}
 export type FlowWorkspace={projects:FlowProject[]}
