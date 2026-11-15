@@ -47,3 +47,12 @@ it('follows renovation only after service completion and returns to design after
  expect(view().flowline?.label).toBe('水电交底')
  preparation.stages[1].tasks[1].done=true;expect(view().taskCompleted).toBe(true)
 })
+
+it('hides archived flow projects from the schedule and shows them again on restoration',()=>{
+ const source=state([stage('s','节点',[false])]);source.data.projects[0].flows[1].isDesign=true;
+ expect(scheduleProjects([],{},source)).toHaveLength(1);
+ source.data.projects[0].archived=true;
+ expect(scheduleProjects([],{},source)).toHaveLength(0);
+ source.data.projects[0].archived=false;
+ expect(scheduleProjects([],{},source)).toHaveLength(1);
+})

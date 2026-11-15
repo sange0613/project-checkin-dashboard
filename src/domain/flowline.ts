@@ -3,7 +3,7 @@ import { hydrateStageProject, stagePercent } from './projectStages'
 export type FlowTask={id:string;text:string;done:boolean}
 export type FlowStage={id:string;title:string;remark?:string;status:string;planStart:string;planEnd:string;actualStartedAt:string;actualCompletedAt:string;tasks:FlowTask[]}
 export type FlowList={isDesign?:boolean;id:string;name:string;stages:FlowStage[]}
-export type FlowProject={projectStart?:string;projectEnd?:string;id:string;name:string;flows:FlowList[]}
+export type FlowProject={archived?:boolean;projectStart?:string;projectEnd?:string;id:string;name:string;flows:FlowList[]}
 export type FlowWorkspace={projects:FlowProject[]}
 export type FlowBinding={projectId:string;flowId:string;mode:'follow'|'manual'}
 export type FlowState={data:FlowWorkspace;ready:boolean;status:string;at:number;cached:boolean}
@@ -33,6 +33,14 @@ export function followedChecklist(project:FlowProject|undefined,flowId:string|un
 export function projectDisplay(project:StageProject,binding:FlowBinding|null,state:FlowState):StageDisplay{const base=hydrateStageProject(project);if(!binding||binding.mode==='manual')return base;const source=state.data.projects.find(p=>p.id===binding.projectId),list=followedChecklist(source,binding.flowId);if(!list){return {...base,taskStart:'',taskEnd:'',taskCompleted:false,flowline:{available:false,stages:[],label:state.ready?'未找到关联清单':'等待流程同步',next:'',percent:null,nodePercent:0,completed:0,total:0,labels:[],doneIndices:[],index:0,allDone:false,scheduled:false,stageId:'',taskId:'',url:flowlineUrl(binding),projectName:source?.name||'',actualStartedAt:'',actualCompletedAt:'',message:state.ready?'关联项目或清单已移除，或尚未同步；原排期仍保留。':state.status}}}const info=listProgress(list),s=info.current||list.stages.at(-1),scheduled=Boolean(s?.planStart&&s?.planEnd&&/^\d{4}-\d{2}-\d{2}$/.test(s.planStart)&&/^\d{4}-\d{2}-\d{2}$/.test(s.planEnd)&&Number.isFinite(Date.parse(s.planStart))&&Number.isFinite(Date.parse(s.planEnd))&&s.planStart<=s.planEnd);return {...base,taskStart:scheduled?s!.planStart:'',taskEnd:scheduled?s!.planEnd:'',taskCompleted:info.allDone,flowline:{available:true,listName:list.name,stages:list.stages,label:info.allDone?'已完成':s?.title||'尚未添加节点',next:info.task?.text||((info.next&&'title'in info.next)?info.next.title:''),percent:info.percent,nodePercent:s?(flowStageDone(s)?100:Math.round(s.tasks.filter(t=>t.done).length/Math.max(1,s.tasks.length)*100)):0,completed:info.completed,total:info.total,labels:list.stages.map(s=>s.title),doneIndices:list.stages.flatMap((s,i)=>flowStageDone(s)?[i]:[]),index:info.index,allDone:info.allDone,scheduled,stageId:s?.id||'',taskId:info.task?.id||'',url:flowlineUrl({...binding,flowId:list.id},s?.id,info.task?.id),projectName:source!.name,actualStartedAt:s?.actualStartedAt||'',actualCompletedAt:s?.actualCompletedAt||''}}}
 export const displayPercent=(p:StageDisplay)=>p.flowline?p.flowline.percent:stagePercent(p.stageIndex)
 export const displayLabel=(p:StageDisplay,labels:string[])=>p.flowline?.label||labels[p.stageIndex]||'未设置阶段'
+export function workStatus(project:StageDisplay,today:string):'complete'|'unavailable'|'unscheduled'|'overdue'|'today'|'upcoming'{
+  if(project.taskCompleted)return 'complete'
+  if(project.flowline && !project.flowline.available)return 'unavailable'
+  if(!project.taskStart || !project.taskEnd)return 'unscheduled'
+  if(project.taskEnd<today)return 'overdue'
+  if(project.taskStart<=today)return 'today'
+  return 'upcoming'
+}
 
 export function scheduleProjects(saved:StageProject[],preferences:Record<string,SyncSettingValue>,state:FlowState):StageDisplay[]{
   const shown=new Set<string>()
@@ -41,7 +49,7 @@ export function scheduleProjects(saved:StageProject[],preferences:Record<string,
     const binding=readBinding(preferences[linkKey(project.id)])
     const source=state.data.projects.find(p=>p.id===binding?.projectId)
     const flow=source?.flows.find(f=>f.id===binding?.flowId)
-    if(binding?.mode==='follow' && state.ready && (flow?.isDesign===false || !flow))continue
+    if(binding?.mode==='follow' && state.ready && (source?.archived || flow?.isDesign===false || !flow))continue
     const row=projectDisplay(project,binding,state)
     if(binding?.mode==='follow'&&flow?.isDesign&&source){
       if(shown.has(source.id))continue
@@ -52,6 +60,7 @@ export function scheduleProjects(saved:StageProject[],preferences:Record<string,
     rows.push(row)
   }
   for(const source of state.data.projects){
+    if(source.archived)continue
     const flow=source.flows.find(f=>f.isDesign)
     if(!flow||shown.has(source.id))continue
     const project:StageProject={id:'flowline:'+source.id,name:source.name,stageIndex:0,createdAt:source.projectStart||'',
