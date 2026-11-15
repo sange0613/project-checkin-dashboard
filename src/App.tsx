@@ -11,6 +11,8 @@ import { RandomHistory } from './components/RandomHistory'
 import { ProjectStageBoard } from './components/ProjectStageBoard'
 import { CheckinActivityHeatmap } from './components/CheckinActivityHeatmap'
 import { SuiteSyncPanel } from './components/SuiteSyncPanel'
+import { RecycleBinPanel } from './components/RecycleBinPanel'
+import { captureProjectRemovals, dismissRecycled, restoreRecycledProject, type RecycleEntry } from './storage/recycleBin'
 import { ShortcutBar } from './components/ShortcutBar'
 import { ShortcutSettings, readShortcuts } from './components/ShortcutSettings'
 import { CollapsibleSection } from './components/CollapsibleSection'
@@ -172,6 +174,7 @@ export default function App() {
   const update = (change: (current: AppState) => AppState) => {
     setState((current) => {
       const next = change(current)
+      if (!captureProjectRemovals(current, next)) return current
       const keys = Object.keys(next) as (keyof AppState)[]
       if (keys.some((key) => key !== 'view' && key !== 'anchorDate' && JSON.stringify(current[key]) !== JSON.stringify(next[key]))) {
         const before = next.shortcutConfig && !current.shortcutConfig
@@ -290,6 +293,8 @@ export default function App() {
     : ''
   const syncSummary = desktopLocalOnly
     ? '仅保存在当前电脑'
+    : suiteSync.connectedCode && suiteSync.pendingCount > 0
+    ? `${saveError ? '本机保存异常' : '本机已保存'} · ${suiteSync.pendingCount} 项修改待同步${!online ? ' · 离线' : suiteSync.status === 'syncing' ? ' · 正在同步' : suiteSync.status === 'error' ? ` · ${suiteSync.message}` : ''}`
     : !online ? '离线 · 修改已保存在本机，联网后同步'
     : suiteSync.status === 'synced'
     ? `数据已同步${lastSyncLabel ? ` · ${lastSyncLabel}` : ''}`
@@ -345,6 +350,12 @@ export default function App() {
       : project),
   }))
   const deleteStageProject = (id: string) => update((current) => ({ ...current, stageProjects: current.stageProjects.filter((project) => project.id !== id) }))
+  const restoreRecycled = (entry: RecycleEntry) => {
+    const next = restoreRecycledProject(state, entry)
+    repository.save(next)
+    update(() => next)
+    dismissRecycled(entry.id)
+  }
   const bindFlowline = (id: string, binding: FlowBinding | null) => setPreference(linkKey(id), binding ? JSON.stringify(binding) : '')
   const renameStageBoard = (stageBoardTitle: string) => update((current) => ({ ...current, stageBoardTitle }))
   const renameStageLabels = (stageLabels: string[]) => update((current) => ({ ...current, stageLabels }))
@@ -419,7 +430,7 @@ export default function App() {
           syncMessage={suiteSync.connectedCode ? syncSummary : '请连接原同步码，即可自动同步'}
           syncControls={!desktopLocalOnly ? <SuiteSyncPanel
             code={suiteSync.codeInput} connected={Boolean(suiteSync.connectedCode)}
-            status={suiteSync.status} message={suiteSync.message} lastSyncedAt={suiteSync.lastSyncedAt}
+            status={suiteSync.status} message={suiteSync.message} lastSyncedAt={suiteSync.lastSyncedAt} pendingCount={suiteSync.pendingCount}
             onCodeChange={suiteSync.setCodeInput} onConnect={() => suiteSync.connect()}
             onCreate={suiteSync.createAndConnect} onDisconnect={suiteSync.disconnect}
           /> : <p className="integrated-template-sync">待办看板 · 仅保存在当前设备</p>}
@@ -514,6 +525,7 @@ export default function App() {
           </div>
         </footer>
         <div className="bottom-panels">
+          <RecycleBinPanel onRestore={restoreRecycled} />
           <RecoveryPanel state={state} onRestore={next => update(() => next)} />
           {!desktopLocalOnly && <InstallPanel />}
           <details className="enhancement-settings"><summary>随机规则与阶段历史</summary>
@@ -534,6 +546,7 @@ export default function App() {
           status={suiteSync.status}
             message={suiteSync.message}
             lastSyncedAt={suiteSync.lastSyncedAt}
+            pendingCount={suiteSync.pendingCount}
           onCodeChange={suiteSync.setCodeInput}
           onConnect={() => suiteSync.connect()}
           onCreate={suiteSync.createAndConnect}

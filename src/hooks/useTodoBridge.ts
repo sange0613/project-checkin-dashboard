@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { mergeTodoSync, normalizeTodoSync, TODO_SYNC_KEY } from '../sync/todoSync'
+import { captureTodoRemovals } from '../storage/recycleBin'
 
 export function useTodoBridge(revision: number, message: string) {
   useEffect(() => {
@@ -11,6 +12,7 @@ export function useTodoBridge(revision: number, message: string) {
       const previous = localStorage.getItem(TODO_SYNC_KEY)
       const merged = JSON.stringify(mergeTodoSync(read(), event.data.value))
       if (previous !== merged) {
+        if (!captureTodoRemovals(read(), JSON.parse(merged))) { send(); return }
         localStorage.setItem(TODO_SYNC_KEY, merged)
         window.dispatchEvent(new StorageEvent('storage', { key: TODO_SYNC_KEY, oldValue: previous, newValue: merged }))
       }

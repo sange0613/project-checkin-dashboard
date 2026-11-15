@@ -7,6 +7,28 @@ import { TOOL_STORAGE_KEYS } from './sync/toolStorage'
 
 beforeEach(() => localStorage.clear())
 
+test('restores one deleted project without reverting changes to other projects', async () => {
+  const initial = createInitialState()
+  initial.projects = [{ id: 'a', name: '误删项目', createdAt: '', archived: false }, { id: 'b', name: '保留项目', createdAt: '', archived: false }]
+  initial.checkins = { a: ['2026-11-15'], b: [] }
+  localStorage.setItem('project-checkins', JSON.stringify({ version: 1, state: initial }))
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  try {
+    render(<App />)
+    await userEvent.click(screen.getByRole('button', { name: '删除 误删项目' }))
+    expect(screen.queryByRole('button', { name: '误删项目' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '保留项目' }))
+    const input = screen.getByRole('textbox', { name: '保留项目名称' })
+    await userEvent.clear(input)
+    await userEvent.type(input, '保留新名称{Enter}')
+    await userEvent.click(screen.getByText(/回收站/, { selector: 'summary' }))
+    await userEvent.click(screen.getByRole('button', { name: '恢复 误删项目' }))
+    expect(screen.getByRole('button', { name: '误删项目' })).toBeVisible()
+    expect(screen.getByRole('button', { name: '保留新名称' })).toBeVisible()
+    expect(JSON.parse(localStorage.getItem('project-checkins')!).state.checkins.a).toEqual(['2026-11-15'])
+  } finally { confirm.mockRestore() }
+})
+
 test('imports a unified backup while retaining the existing sync code', async () => {
   const restored = createInitialState()
   restored.title = '统一备份恢复'

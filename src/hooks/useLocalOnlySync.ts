@@ -19,5 +19,6 @@ export function useSuiteSync(_state: AppState, _setState: Dispatch<SetStateActio
     disconnect: () => undefined,
     toolDataRevision,
     lastSyncedAt: undefined,
+    pendingCount: 0,
   }
 }

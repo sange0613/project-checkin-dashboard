@@ -11,6 +11,7 @@ import {
 import type { AppState, SyncState } from '../domain/types'
 import { saveRecovery } from '../storage/recovery'
 import { recordConflicts } from '../storage/syncConflicts'
+import { captureProjectRemovals, captureTodoRemovals } from '../storage/recycleBin'
 import { TOOL_STORAGE_KEYS, readToolValue } from '../sync/toolStorage'
 const ACCEPTED_SYNC_KEY = 'project-suite-dashboard-accepted-v1'
 import {
@@ -41,6 +42,7 @@ const SUITE_META_KEY = 'project-suite-sync-meta-v1'
 const DASHBOARD_SYNC_KEY = 'project-suite-dashboard-sync-v2'
 const DAILY_CODE_KEY = 'calorie-tracker-v1-sync-code'
 const PUSH_DEBOUNCE_MS = 2_500
+const PENDING_KEY = 'project-suite-pending-count-v1'
 
 type SyncMeta = Partial<Record<SuiteAppId, { fingerprint: string; updatedAt: number; updatedBy: string }>>
 type SyncStatus = 'local' | 'connecting' | 'syncing' | 'synced' | 'error'
@@ -146,8 +148,24 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
   const acceptedDashboardSyncRef = useRef<SyncState>(initialAcceptedSync)
   const sessionRef = useRef<SyncSession | null>(null)
   const deviceIdRef = useRef(deviceId)
-  const localRevisionRef = useRef(0)
+  const [pendingCount, setPendingCount] = useState(() => {
+    const saved = Number(localStorage.getItem(PENDING_KEY))
+    return Number.isSafeInteger(saved) && saved > 0 ? saved : fingerprint(initialDashboardSync) !== fingerprint(initialAcceptedSync) ? 1 : 0
+  })
+  const localRevisionRef = useRef(pendingCount)
   const acceptedRevisionRef = useRef(0)
+  const markLocalChange = useCallback(() => {
+    localRevisionRef.current += 1
+    const count = localRevisionRef.current - acceptedRevisionRef.current
+    setPendingCount(count)
+    saveMetadata(PENDING_KEY, count)
+  }, [])
+  const acknowledge = useCallback((revision: number) => {
+    acceptedRevisionRef.current = revision
+    const count = Math.max(0, localRevisionRef.current - revision)
+    setPendingCount(count)
+    saveMetadata(PENDING_KEY, count)
+  }, [])
 
   // Keep the latest click/edit visible to snapshot callbacks before passive effects run.
   useLayoutEffect(() => { stateRef.current = state }, [state])
@@ -170,6 +188,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         saveDashboardSync(syncedDashboard)
         setState((current) => {
           const next = applySyncStateToAppState(current, syncedDashboard)
+          captureProjectRemovals(current, next)
           if (fingerprint(dashboardViewValue(current)) !== fingerprint(dashboardViewValue(next))) saveRecovery(current, '同步前')
           return fingerprint(dashboardViewValue(current)) === fingerprint(dashboardViewValue(next)) ? current : next
         })
@@ -178,6 +197,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         const storageKey = TOOL_STORAGE_KEYS[id]
         if (fingerprint(parseJson(localStorage.getItem(storageKey))) !== nextFingerprint) {
+          if (id === 'todo') captureTodoRemovals(parseJson(localStorage.getItem(storageKey)), payload.value)
           try { localStorage.setItem(storageKey, JSON.stringify(payload.value)) }
           catch {
             window.dispatchEvent(new Event('checkin-storage-error'))
@@ -275,8 +295,8 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
             session.pending = true
             return
           }
-          acceptedRevisionRef.current = collectedRevision
           applySuite(merged)
+          acknowledge(collectedRevision)
           setStatus('synced')
           setMessage('已同步')
           setLastSyncedAt(Date.now())
@@ -298,7 +318,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         if (!failed && session.pending && !session.disposed) schedulePush()
       }
     }, PUSH_DEBOUNCE_MS)
-  }, [applySuite, collectLocalSuite])
+  }, [acknowledge, applySuite, collectLocalSuite])
 
   useLayoutEffect(() => {
     const session = sessionRef.current
@@ -317,9 +337,9 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     saveDashboardSync(value)
     metaRef.current.dashboard = { fingerprint: nextFingerprint, updatedAt: Date.now(), updatedBy: deviceIdRef.current }
     saveMeta(metaRef.current)
-    localRevisionRef.current += 1
+    markLocalChange()
     if (session?.ready) schedulePush()
-  }, [schedulePush, state])
+  }, [markLocalChange, schedulePush, state])
 
   useEffect(() => {
     if (!connectedCode) return
@@ -409,8 +429,8 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         try { localStorage.removeItem(DAILY_CODE_KEY) } catch { /* Legacy code is harmless when retained. */ }
         session.ready = true
         if (localRevisionRef.current === connectionResult.collectedRevision) {
-          acceptedRevisionRef.current = connectionResult.collectedRevision
           applySuite(connectionResult.next)
+          acknowledge(connectionResult.collectedRevision)
           setStatus('synced')
           setMessage('已同步')
           setLastSyncedAt(Date.now())
@@ -462,15 +482,15 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       if (session.timer) clearTimeout(session.timer)
       if (retryTimer) clearTimeout(retryTimer)
     }
-  }, [applySuite, collectLocalSuite, connectedCode, connectionAttempt, schedulePush])
+  }, [acknowledge, applySuite, collectLocalSuite, connectedCode, connectionAttempt, schedulePush])
 
   useEffect(() => {
-    if (!connectedCode) return
     const storageToApp = Object.fromEntries(
       Object.entries(TOOL_STORAGE_KEYS).map(([id, key]) => [key, id]),
     ) as Record<string, Exclude<SuiteAppId, 'dashboard'>>
     const onStorage = (event: StorageEvent) => {
       const id = event.key ? storageToApp[event.key] : undefined
+      if (id === 'todo') captureTodoRemovals(parseJson(event.oldValue), parseJson(event.newValue))
       if (!id || !sessionRef.current || sessionRef.current.disposed) return
       const value = parseJson(event.newValue)
       if (value === undefined) return
@@ -481,23 +501,23 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         updatedBy: deviceIdRef.current,
       }
       saveMeta(metaRef.current)
-      localRevisionRef.current += 1
+      markLocalChange()
       schedulePush()
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
-  }, [connectedCode, schedulePush])
+  }, [connectedCode, markLocalChange, schedulePush])
 
   useEffect(() => {
     const restored = () => {
       // Invalidate once for the whole import, not once per subpage.
-      localRevisionRef.current += 1
+      markLocalChange()
       setToolDataRevision(revision => revision + 1)
       schedulePush()
     }
     window.addEventListener('suite-tools-restored', restored)
     return () => window.removeEventListener('suite-tools-restored', restored)
-  }, [schedulePush])
+  }, [markLocalChange, schedulePush])
 
   const storeCode = useCallback((code: string) => {
     try {
@@ -559,6 +579,42 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     return () => window.removeEventListener('online', reconnectWhenOnline)
   }, [connectedCode, status])
 
+  const wakeRef = useRef({ last: 0, busy: false })
+  useEffect(() => {
+    let disposed = false
+    const wake = async () => {
+      if (!connectedCode || document.visibilityState === 'hidden' || !navigator.onLine || wakeRef.current.busy || Date.now() - wakeRef.current.last < 15000) return
+      wakeRef.current.last = Date.now()
+      const session = sessionRef.current
+      if (!session?.ready) { if (status !== 'connecting') setConnectionAttempt(value => value + 1); return }
+      if (session.uploading || localRevisionRef.current !== acceptedRevisionRef.current) { schedulePush(); return }
+      wakeRef.current.busy = true
+      try {
+        const { getDocFromServer } = await import('firebase/firestore')
+        const snapshot = await getDocFromServer(session.document)
+        if (disposed || session.disposed || sessionRef.current !== session) return
+        if (localRevisionRef.current !== acceptedRevisionRef.current || session.uploading) { schedulePush(); return }
+        if (!snapshot.exists()) { schedulePush(); return }
+        const remote = normalizeSuiteState(snapshot.data().suite)
+        const next = mergeSuiteStates(remote, collectLocalSuite())
+        applySuite(next)
+        if (!suiteStatesEqual(next, remote)) schedulePush()
+        else { setStatus('synced'); setMessage('已同步'); setLastSyncedAt(Date.now()) }
+      } catch {
+        if (!disposed && !session.disposed) setConnectionAttempt(value => value + 1)
+      } finally { wakeRef.current.busy = false }
+    }
+    window.addEventListener('focus', wake)
+    window.addEventListener('pageshow', wake)
+    document.addEventListener('visibilitychange', wake)
+    return () => {
+      disposed = true
+      window.removeEventListener('focus', wake)
+      window.removeEventListener('pageshow', wake)
+      document.removeEventListener('visibilitychange', wake)
+    }
+  }, [applySuite, collectLocalSuite, connectedCode, schedulePush, status])
+
   return {
     codeInput,
     setCodeInput: (value: string) => setCodeInputState(cleanSyncCode(value)),
@@ -570,5 +626,6 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     disconnect,
     toolDataRevision,
     lastSyncedAt,
+    pendingCount,
   }
 }

@@ -10,6 +10,7 @@ import { normalizeTodoSync, todoWorkspace, TODO_SYNC_KEY } from '../sync/todoSyn
 const firestoreMock = vi.hoisted(() => ({
   runTransaction: vi.fn(),
   onSnapshot: vi.fn(),
+  getDocFromServer: vi.fn(),
 }))
 
 vi.mock('../sync/suiteSyncModel', async importOriginal => ({
@@ -35,6 +36,7 @@ vi.mock('firebase/firestore', () => {
     getFirestore: () => db,
     onSnapshot: (...args: unknown[]) => firestoreMock.onSnapshot(...args),
     runTransaction: firestoreMock.runTransaction,
+    getDocFromServer: firestoreMock.getDocFromServer,
     serverTimestamp: () => 'server-time',
   }
 })
@@ -43,6 +45,79 @@ beforeEach(() => {
   localStorage.clear()
   firestoreMock.runTransaction.mockReset()
   firestoreMock.onSnapshot.mockReset().mockReturnValue(vi.fn())
+  firestoreMock.getDocFromServer.mockReset()
+})
+
+test('counts unacknowledged edits, persists the count, and clears it only after upload succeeds', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'PENDINGCOUNT1234')
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return { state, setState, sync: useSuiteSync(state, setState) } })
+  await waitFor(() => expect(result.current.sync.status).toBe('synced'))
+  vi.useFakeTimers()
+  try {
+    act(() => result.current.setState(current => ({ ...current, title: '第一次修改' })))
+    act(() => result.current.setState(current => ({ ...current, title: '第二次修改' })))
+    expect(result.current.sync.pendingCount).toBe(2)
+    expect(localStorage.getItem('project-suite-pending-count-v1')).toBe('2')
+    act(() => window.dispatchEvent(new Event('focus')))
+    expect(firestoreMock.getDocFromServer).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+    expect(result.current.sync.pendingCount).toBe(0)
+    expect(localStorage.getItem('project-suite-pending-count-v1')).toBe('0')
+  } finally { unmount(); vi.useRealTimers() }
+})
+
+test('keeps the pending count across a page reload before the next connection completes', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'PENDINGRELOAD123')
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  const first = renderHook(() => { const [state, setState] = useState(createInitialState()); return { state, setState, sync: useSuiteSync(state, setState) } })
+  await waitFor(() => expect(first.result.current.sync.status).toBe('synced'))
+  let saved = first.result.current.state
+  vi.useFakeTimers()
+  try {
+    act(() => first.result.current.setState(current => ({ ...current, title: '离线保存的修改' })))
+    saved = first.result.current.state
+    expect(first.result.current.sync.pendingCount).toBe(1)
+  } finally { first.unmount(); vi.useRealTimers() }
+  const second = renderHook(() => { const [state, setState] = useState(saved); return useSuiteSync(state, setState) })
+  try { expect(second.result.current.pendingCount).toBe(1) }
+  finally { second.unmount() }
+})
+
+test('reads fresh server data when the page resumes and coalesces duplicate wake events', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'WAKERESUME12345')
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  const remote = createSyncStateFromAppState(createInitialState())
+  remote.settings.title = { value: '其他设备的新标题', updatedAt: Date.now() + 100000, updatedBy: 'remote' }
+  firestoreMock.getDocFromServer.mockResolvedValue({ exists: () => true, data: () => ({ suite: { apps: { dashboard: { value: remote, updatedAt: Date.now() + 100000, updatedBy: 'remote' } } } }) })
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return { state, sync: useSuiteSync(state, setState) } })
+  try {
+    await waitFor(() => expect(result.current.sync.status).toBe('synced'))
+    act(() => { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('pageshow')); document.dispatchEvent(new Event('visibilitychange')) })
+    await waitFor(() => expect(result.current.state.title).toBe('其他设备的新标题'))
+    expect(firestoreMock.getDocFromServer).toHaveBeenCalledTimes(1)
+    expect(result.current.sync.pendingCount).toBe(0)
+  } finally { unmount() }
+})
+
+test('keeps an edit made while the foreground freshness check is in flight', async () => {
+  localStorage.setItem('project-suite-sync-code-v1', 'WAKERACE1234567')
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
+  let resolve: (value: unknown) => void = () => {}
+  firestoreMock.getDocFromServer.mockReturnValue(new Promise(value => { resolve = value }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return { state, setState, sync: useSuiteSync(state, setState) } })
+  await waitFor(() => expect(result.current.sync.status).toBe('synced'))
+  act(() => window.dispatchEvent(new Event('focus')))
+  await waitFor(() => expect(firestoreMock.getDocFromServer).toHaveBeenCalledTimes(1))
+  vi.useFakeTimers()
+  try {
+    act(() => result.current.setState(current => ({ ...current, title: '刚刚输入的新标题' })))
+    await act(async () => { resolve({ exists: () => true, data: () => ({ suite: { apps: {} } }) }); await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.state.title).toBe('刚刚输入的新标题')
+    expect(result.current.sync.pendingCount).toBe(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+    expect(result.current.sync.pendingCount).toBe(0)
+  } finally { unmount(); vi.useRealTimers() }
 })
 
 test('automatically reconnects after the first connection transaction fails', async () => {
