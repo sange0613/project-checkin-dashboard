@@ -68,6 +68,18 @@ function fingerprint(value: unknown): string {
   return JSON.stringify(value)
 }
 
+// Metadata needs a compact change detector, not another full copy of every app.
+function compactFingerprint(raw: string): string {
+  let a = 2166136261, b = 2246822519, c = 3266489917, d = 668265263
+  for (let i = 0; i < raw.length; i++) {
+    const n = raw.charCodeAt(i)
+    a = Math.imul(a ^ n, 16777619); b = Math.imul(b ^ n, 2246822519)
+    c = Math.imul(c ^ n, 3266489917); d = Math.imul(d ^ n, 668265263)
+  }
+  return `h1:${raw.length}:${[a,b,c,d].map(n => (n >>> 0).toString(16).padStart(8, '0')).join('')}`
+}
+const metaFingerprint = (value: unknown) => compactFingerprint(fingerprint(value) ?? 'undefined')
+
 function dashboardViewValue(state: AppState): Omit<AppState, 'view' | 'anchorDate'> {
   const { view: _view, anchorDate: _anchorDate, ...synced } = state
   return synced
@@ -108,7 +120,15 @@ function suiteForCloud(suite: SuiteSyncState, currentState: AppState): SuiteSync
 
 function loadMeta(): SyncMeta {
   const parsed = parseJson(localStorage.getItem(SUITE_META_KEY))
-  return parsed && typeof parsed === 'object' ? parsed as SyncMeta : {}
+  if (!parsed || typeof parsed !== 'object') return {}
+  const meta = parsed as SyncMeta
+  let migrated = false
+  for (const entry of Object.values(meta)) {
+    if (entry && typeof entry.fingerprint === 'string' && !entry.fingerprint.startsWith('h1:')) { entry.fingerprint = compactFingerprint(entry.fingerprint); migrated = true }
+  }
+  // Replacing the existing value with a smaller one frees space before other writes.
+  if (migrated) { try { localStorage.setItem(SUITE_META_KEY, JSON.stringify(meta)) } catch { /* Keep the existing metadata intact. */ } }
+  return meta
 }
 
 function saveMeta(meta: SyncMeta) {
@@ -180,7 +200,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
 
       if (id === 'dashboard') {
         const syncedDashboard = normalizeSyncState(payload.value)
-        const nextFingerprint = fingerprint(syncedDashboard)
+        const nextFingerprint = metaFingerprint(syncedDashboard)
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         dashboardSyncRef.current = syncedDashboard
         acceptedDashboardSyncRef.current = syncedDashboard
@@ -193,10 +213,10 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
           return fingerprint(dashboardViewValue(current)) === fingerprint(dashboardViewValue(next)) ? current : next
         })
       } else {
-        const nextFingerprint = fingerprint(payload.value)
+        const nextFingerprint = metaFingerprint(payload.value)
         metaRef.current[id] = { fingerprint: nextFingerprint, updatedAt: payload.updatedAt, updatedBy: payload.updatedBy }
         const storageKey = TOOL_STORAGE_KEYS[id]
-        if (fingerprint(parseJson(localStorage.getItem(storageKey))) !== nextFingerprint) {
+        if (metaFingerprint(parseJson(localStorage.getItem(storageKey))) !== nextFingerprint) {
           if (id === 'todo') captureTodoRemovals(parseJson(localStorage.getItem(storageKey)), payload.value)
           try { localStorage.setItem(storageKey, JSON.stringify(payload.value)) }
           catch {
@@ -233,7 +253,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
     for (const id of SUITE_APP_IDS) {
       const value = values[id]
       if (value === undefined) continue
-      const valueFingerprint = fingerprint(value)
+      const valueFingerprint = metaFingerprint(value)
       let meta = metaRef.current[id]
 
       if (!meta || meta.fingerprint !== valueFingerprint) {
@@ -330,7 +350,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
         updatedBy: deviceIdRef.current,
       },
     )
-    const nextFingerprint = fingerprint(value)
+    const nextFingerprint = metaFingerprint(value)
     const meta = metaRef.current.dashboard
     if (meta?.fingerprint === nextFingerprint) return
     dashboardSyncRef.current = value
@@ -496,7 +516,7 @@ export function useSuiteSync(state: AppState, setState: Dispatch<SetStateAction<
       if (value === undefined) return
       const previousMeta = metaRef.current[id]
       metaRef.current[id] = {
-        fingerprint: fingerprint(value),
+        fingerprint: metaFingerprint(value),
         updatedAt: Math.max(Date.now(), (previousMeta?.updatedAt ?? 0) + 1),
         updatedBy: deviceIdRef.current,
       }

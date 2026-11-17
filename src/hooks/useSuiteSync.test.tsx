@@ -48,6 +48,24 @@ beforeEach(() => {
   firestoreMock.getDocFromServer.mockReset()
 })
 
+test('compacts old sync metadata without changing timestamps or dropping todo data', async () => {
+  const value = normalizeTodoSync({ boards: [{ id: 'b', name: '看板', columns: [{ id: 'todo', label: '待办' }], tasks: [{ id: 'a', title: '保留的待办', notes: '长备注'.repeat(1000), status: 'todo', due: '' }] }], activeBoardId: 'b' })
+  localStorage.setItem('project-suite-sync-code-v1', 'COMPACTMETA12345')
+  localStorage.setItem(TODO_SYNC_KEY, JSON.stringify(value))
+  localStorage.setItem('project-suite-sync-meta-v1', JSON.stringify({ todo: { fingerprint: JSON.stringify(value), updatedAt: 123, updatedBy: 'original' } }))
+  const writes: any[] = []
+  firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: (_doc: unknown, data: unknown) => writes.push(data) }))
+  const { result, unmount } = renderHook(() => { const [state, setState] = useState(createInitialState()); return useSuiteSync(state, setState) })
+  try {
+    await waitFor(() => expect(result.current.status).toBe('synced'))
+    const meta = JSON.parse(localStorage.getItem('project-suite-sync-meta-v1')!)
+    expect(meta.todo.updatedAt).toBe(123)
+    expect(meta.todo.updatedBy).toBe('original')
+    expect(meta.todo.fingerprint.length).toBeLessThan(64)
+    expect(todoWorkspace(normalizeTodoSync(writes.at(-1).suite.apps.todo.value)).boards[0].tasks[0].title).toBe('保留的待办')
+  } finally { unmount() }
+})
+
 test('counts unacknowledged edits, persists the count, and clears it only after upload succeeds', async () => {
   localStorage.setItem('project-suite-sync-code-v1', 'PENDINGCOUNT1234')
   firestoreMock.runTransaction.mockImplementation(async (_db, callback) => callback({ get: async () => ({ exists: () => false }), set: vi.fn() }))
