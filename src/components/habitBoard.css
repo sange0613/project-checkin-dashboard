@@ -50,11 +50,12 @@
 .habit-month { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--habit-muted); font-size: 12px; }
 .habit-month button, .habit-detail header button { display: grid; place-items: center; min-width: 42px; min-height: 40px; padding: 0 5px; }
 .habit-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.habit-card { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; padding: 2px 8px; border-radius: 11px; }
+.habit-board > .habit-cards { grid-template-columns: repeat(2, minmax(0, 138px)); justify-content: center; }
+.habit-card { display: grid; grid-template-rows: auto 1fr auto; aspect-ratio: 1; min-width: 0; padding: 2px 8px; border-radius: 11px; }
 .habit-board .habit-name { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0; text-align: left; }
 .habit-name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .habit-icon { display: grid; place-items: center; flex: 0 0 27px; height: 27px; border-radius: 9px; background: var(--habit-soft); color: var(--habit-accent); }
-.habit-card .habit-dots { grid-auto-rows: 10px; align-content: center; width: 100%; max-width: 145px; justify-self: center; }
+.habit-card .habit-dots { grid-auto-rows: 9px; align-content: center; width: 100%; justify-self: center; }
 .habit-dots > * { display: grid; place-items: center; min-width: 0; }
 .habit-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--habit-dot); }
 .habit-dots i[data-done="true"] { background: var(--habit-accent); }
@@ -90,8 +91,10 @@
 .habit-stat-item progress { width: 100%; height: 5px; accent-color: var(--habit-accent); }
 @media (min-width: 700px) {
   .habit-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .habit-board > .habit-cards { grid-template-columns: repeat(3, minmax(0, 138px)); }
   .habit-card { padding-inline: 10px; }
 }
 @media (min-width: 1350px) and (pointer: fine) {
   .habit-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .habit-board > .habit-cards { grid-template-columns: repeat(4, minmax(0, 138px)); }
 }
