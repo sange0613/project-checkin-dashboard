@@ -50,7 +50,10 @@
 .habit-month { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--habit-muted); font-size: 12px; }
 .habit-month button, .habit-detail header button { display: grid; place-items: center; min-width: 42px; min-height: 40px; padding: 0 5px; }
 .habit-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.habit-board > .habit-cards { grid-template-columns: repeat(2, minmax(0, 138px)); justify-content: center; }
+.habit-board > .habit-cards {
+  grid-template-columns: repeat(auto-fill, min(138px, calc((100% - 8px) / 2)));
+  justify-content: center;
+}
 .habit-card { display: grid; grid-template-rows: auto 1fr auto; aspect-ratio: 1; min-width: 0; padding: 2px 8px; border-radius: 11px; }
 .habit-board .habit-name { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0; text-align: left; }
 .habit-name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.25; }
@@ -97,10 +100,8 @@
 }
 @media (min-width: 700px) {
   .habit-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .habit-board > .habit-cards { grid-template-columns: repeat(3, minmax(0, 138px)); }
   .habit-card { padding-inline: 10px; }
 }
 @media (min-width: 1350px) and (pointer: fine) {
   .habit-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .habit-board > .habit-cards { grid-template-columns: repeat(4, minmax(0, 138px)); }
 }
