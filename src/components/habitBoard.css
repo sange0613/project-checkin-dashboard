@@ -53,13 +53,16 @@
 .habit-board > .habit-cards { grid-template-columns: repeat(2, minmax(0, 138px)); justify-content: center; }
 .habit-card { display: grid; grid-template-rows: auto 1fr auto; aspect-ratio: 1; min-width: 0; padding: 2px 8px; border-radius: 11px; }
 .habit-board .habit-name { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0; text-align: left; }
-.habit-name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.habit-icon { display: grid; place-items: center; flex: 0 0 27px; height: 27px; border-radius: 9px; background: var(--habit-soft); color: var(--habit-accent); }
-.habit-card .habit-dots { grid-auto-rows: 9px; align-content: center; width: 100%; justify-self: center; }
+.habit-name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.25; }
+.habit-icon { display: grid; place-items: center; flex: 0 0 23px; height: 23px; border-radius: 7px; background: var(--habit-soft); color: var(--habit-accent); }
+.habit-icon svg { width: 15px; height: 15px; }
+.habit-card .habit-dots { grid-auto-rows: 10px; align-content: center; width: min(100%, 98px); justify-self: center; }
 .habit-dots > * { display: grid; place-items: center; min-width: 0; }
 .habit-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--habit-dot); }
+.habit-card .habit-dots i { width: 8px; height: 8px; }
 .habit-dots i[data-done="true"] { background: var(--habit-accent); }
 .habit-dots i[data-selected="true"] { outline: 1px solid var(--habit-accent); outline-offset: 1px; }
+.habit-card .habit-dots i[data-selected="true"] { outline-offset: 0; }
 .habit-board .habit-action { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 40px; padding: 0; border-radius: 9px; color: var(--habit-accent); font-size: 12px; font-weight: 700; }
 .habit-action[data-done="true"] { background: var(--habit-soft); }
 .habit-action:active, .habit-name:active { opacity: .65; }
@@ -89,6 +92,9 @@
 .habit-stat-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .habit-stat-item span { flex-shrink: 0; }
 .habit-stat-item progress { width: 100%; height: 5px; accent-color: var(--habit-accent); }
+@media (max-width: 359px) {
+  .habit-card .habit-dots { grid-auto-rows: 9px; }
+}
 @media (min-width: 700px) {
   .habit-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .habit-board > .habit-cards { grid-template-columns: repeat(3, minmax(0, 138px)); }
