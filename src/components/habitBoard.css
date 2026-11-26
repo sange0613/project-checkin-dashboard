@@ -67,6 +67,27 @@
 .habit-detail .habit-dots button { min-height: 44px; gap: 4px; align-content: center; border-radius: 8px; font-size: 12px; }
 .habit-detail p, .habit-empty { font-size: 13px; color: var(--habit-muted); }
 .habit-board-link { display: inline-block; margin: 0 0 8px; color: inherit; font-size: 12px; text-underline-offset: 3px; }
+.habit-stat-period, .habit-stat-metrics { display: grid; gap: 6px; }
+.habit-stat-period { grid-template-columns: repeat(3, 1fr); background: var(--habit-soft); padding: 3px; border-radius: 12px; }
+.habit-stat-period button { min-height: 42px; border-radius: 9px; color: var(--habit-muted); }
+.habit-stat-period button[aria-pressed="true"] { background: var(--habit-card); color: var(--habit-text); }
+.habit-stat-date { margin: 8px 0; color: var(--habit-muted); font-size: 12px; }
+.habit-stat-metrics { grid-template-columns: repeat(2, 1fr); }
+.habit-stat-metrics > div, .habit-stat-chart, .habit-stat-item { background: var(--habit-card); border-radius: 12px; padding: 12px; }
+.habit-stat-metrics span, .habit-stat-item span { color: var(--habit-muted); font-size: 12px; }
+.habit-stat-metrics strong { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
+.habit-stat-metrics small { font-size: 12px; color: var(--habit-muted); }
+.habit-stats h3 { margin: 0 0 10px; font-size: 15px; }
+.habit-stat-chart { margin: 8px 0 14px; }
+.habit-stat-bars { display: grid; gap: 4px; text-align: center; font-size: 10px; color: var(--habit-muted); }
+.habit-stat-bars[data-period="month"] { gap: 2px; }
+.habit-stat-bar { display: flex; align-items: end; height: 78px; overflow: hidden; border-radius: 5px; background: var(--habit-soft); margin-bottom: 4px; }
+.habit-stat-bar i { width: 100%; background: var(--habit-accent); opacity: .8; border-radius: inherit; }
+.habit-stat-item { min-width: 0; font-size: 13px; }
+.habit-stat-item > div { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+.habit-stat-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.habit-stat-item span { flex-shrink: 0; }
+.habit-stat-item progress { width: 100%; height: 5px; accent-color: var(--habit-accent); }
 @media (min-width: 700px) {
   .habit-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .habit-card { padding: 4px 10px; }

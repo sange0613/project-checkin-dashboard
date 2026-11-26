@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BookOpen, Check, ChevronLeft, ChevronRight, Circle, Dumbbell, Flower2, X } from 'lucide-react'
 import { getMonthDays, getWeekPeriods, toDateKey, type DateItem } from '../domain/dateRanges'
 import type { Project } from '../domain/types'
+import { HabitStats } from './HabitStats'
 import './habitBoard.css'
 
 const THEME_KEY = 'project-habit-board-theme'
@@ -46,6 +47,7 @@ export function HabitBoard({ projects, checkins, today, onToggle }: Props) {
     catch { return 'mono' }
   })
   const [projectId, setProjectId] = useState<string>()
+  const [statsOpen, setStatsOpen] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   const project = projects.find(item => item.id === projectId)
@@ -82,18 +84,16 @@ export function HabitBoard({ projects, checkins, today, onToggle }: Props) {
 
   return <section id="habit-board" className="habit-board" data-habit-theme={theme} aria-label="习惯看板">
     <header className="habit-heading">
-      <h2>习惯看板</h2>
+      <h2>{statsOpen ? '打卡统计' : '习惯看板'}</h2>
       <div className="habit-heading-actions">
-        <button type="button" className="habit-overview" onClick={() => {
-          window.dispatchEvent(new CustomEvent('open-section', { detail: 'activity' }))
-          requestAnimationFrame(() => document.getElementById('section-activity')?.scrollIntoView({ block: 'start' }))
-        }}>总览 ↑</button>
+        <button type="button" className="habit-overview" onClick={() => setStatsOpen(open => !open)}>{statsOpen ? '返回看板' : '总览'}</button>
         <div className="habit-themes" role="group" aria-label="看板主题">
           <button type="button" aria-pressed={theme === 'lavender'} onClick={() => changeTheme('lavender')}>浅紫</button>
           <button type="button" aria-pressed={theme === 'mono'} onClick={() => changeTheme('mono')}>黑白</button>
         </div>
       </div>
     </header>
+    {statsOpen ? <HabitStats projects={projects} checkins={checkins} today={today} /> : <>
     <div className="habit-summary">
       <div className="habit-progress"><strong>今日进度</strong><span>{completed}/{projects.length}</span><progress aria-label="今日进度" value={completed} max={Math.max(1, projects.length)} /></div>
       <div className="habit-week" role="group" aria-label="本周日期">
@@ -119,6 +119,7 @@ export function HabitBoard({ projects, checkins, today, onToggle }: Props) {
       })}
     </div>
     {!projects.length && <p className="habit-empty">添加项目后，习惯会显示在这里。</p>}
+    </>}
     <dialog ref={dialog} className="habit-detail" aria-label="习惯详情" onClose={() => { setProjectId(undefined); trigger.current?.focus() }} onClick={event => {
       if (event.target !== event.currentTarget) return
       const rect = event.currentTarget.getBoundingClientRect()
