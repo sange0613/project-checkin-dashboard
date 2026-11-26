@@ -42,8 +42,8 @@ export function HabitBoard({ projects, checkins, today, onToggle }: Props) {
   const selected = dateKey ?? todayKey
   const selectedDate = new Date(`${selected}T12:00:00`)
   const [theme, setTheme] = useState<'lavender' | 'mono'>(() => {
-    try { return localStorage.getItem(THEME_KEY) === 'mono' ? 'mono' : 'lavender' }
-    catch { return 'lavender' }
+    try { return localStorage.getItem(THEME_KEY) === 'lavender' ? 'lavender' : 'mono' }
+    catch { return 'mono' }
   })
   const [projectId, setProjectId] = useState<string>()
   const dialog = useRef<HTMLDialogElement>(null)
@@ -83,9 +83,15 @@ export function HabitBoard({ projects, checkins, today, onToggle }: Props) {
   return <section id="habit-board" className="habit-board" data-habit-theme={theme} aria-label="习惯看板">
     <header className="habit-heading">
       <h2>习惯看板</h2>
-      <div className="habit-themes" role="group" aria-label="看板主题">
-        <button type="button" aria-pressed={theme === 'lavender'} onClick={() => changeTheme('lavender')}>浅紫</button>
-        <button type="button" aria-pressed={theme === 'mono'} onClick={() => changeTheme('mono')}>黑白</button>
+      <div className="habit-heading-actions">
+        <button type="button" className="habit-overview" onClick={() => {
+          window.dispatchEvent(new CustomEvent('open-section', { detail: 'activity' }))
+          requestAnimationFrame(() => document.getElementById('section-activity')?.scrollIntoView({ block: 'start' }))
+        }}>总览 ↑</button>
+        <div className="habit-themes" role="group" aria-label="看板主题">
+          <button type="button" aria-pressed={theme === 'lavender'} onClick={() => changeTheme('lavender')}>浅紫</button>
+          <button type="button" aria-pressed={theme === 'mono'} onClick={() => changeTheme('mono')}>黑白</button>
+        </div>
       </div>
     </header>
     <div className="habit-summary">
