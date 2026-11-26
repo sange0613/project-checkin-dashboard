@@ -1,0 +1,69 @@
+.habit-board {
+  --habit-bg: #f2f2f6;
+  --habit-card: #fff;
+  --habit-text: #222228;
+  --habit-muted: #656573;
+  --habit-accent: #644eaa;
+  --habit-soft: #eee9fc;
+  --habit-dot: #dfdfe6;
+  margin-top: 26px;
+  padding: clamp(10px, 2vw, 24px);
+  border-radius: 20px;
+  background: var(--habit-bg);
+  color: var(--habit-text);
+  scroll-margin-top: 12px;
+}
+.habit-board[data-habit-theme="mono"] {
+  --habit-bg: #f1f1f1;
+  --habit-text: #181818;
+  --habit-muted: #626262;
+  --habit-accent: #262626;
+  --habit-soft: #ededed;
+  --habit-dot: #dfdfdf;
+}
+.habit-board button { border: 0; font: inherit; color: inherit; background: transparent; cursor: pointer; }
+.habit-board button:focus-visible { outline: 2px solid var(--habit-accent); outline-offset: 2px; }
+.habit-board button:disabled { cursor: default; opacity: .55; }
+.habit-heading, .habit-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.habit-heading { margin-bottom: 8px; }
+.habit-heading h2, .habit-detail h3 { margin: 0; font-size: 18px; }
+.habit-themes { display: flex; gap: 2px; background: var(--habit-card); padding: 2px; border-radius: 10px; }
+.habit-themes button { border-radius: 8px; min-height: 34px; padding: 0 9px; font-size: 12px; color: var(--habit-muted); }
+.habit-themes button[aria-pressed="true"] { background: var(--habit-soft); color: var(--habit-accent); font-weight: 700; }
+.habit-summary, .habit-card { background: var(--habit-card); border-radius: 15px; }
+.habit-summary { padding: 9px 12px 5px; }
+.habit-progress { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.habit-progress span { color: var(--habit-accent); font-variant-numeric: tabular-nums; }
+.habit-progress progress { flex: 1; height: 6px; border: 0; border-radius: 8px; overflow: hidden; accent-color: var(--habit-accent); background: var(--habit-soft); }
+.habit-progress progress::-webkit-progress-bar { background: var(--habit-soft); }
+.habit-progress progress::-webkit-progress-value { background: var(--habit-accent); border-radius: 8px; }
+.habit-week, .habit-dots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.habit-week { margin-top: 4px; }
+.habit-week button { min-height: 44px; display: grid; justify-items: center; align-content: center; gap: 2px; border-radius: 10px; font-size: 12px; }
+.habit-week small { color: var(--habit-muted); font-size: 10px; }
+.habit-week button[aria-pressed="true"] { color: var(--habit-accent); background: var(--habit-soft); font-weight: 700; }
+.habit-month { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--habit-muted); font-size: 12px; }
+.habit-month button, .habit-detail header button { display: grid; place-items: center; min-width: 42px; min-height: 40px; padding: 0 5px; }
+.habit-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.habit-card { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; padding: 6px 9px; }
+.habit-board .habit-name { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 0; text-align: left; }
+.habit-name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.habit-icon { display: grid; place-items: center; flex: 0 0 27px; height: 27px; border-radius: 9px; background: var(--habit-soft); color: var(--habit-accent); }
+.habit-card .habit-dots { grid-template-rows: repeat(6, 13px); padding: 0 3px; }
+.habit-dots > * { display: grid; place-items: center; min-width: 0; }
+.habit-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--habit-dot); }
+.habit-dots i[data-done="true"] { background: var(--habit-accent); }
+.habit-dots i[data-selected="true"] { outline: 1px solid var(--habit-accent); outline-offset: 1px; }
+.habit-board .habit-action { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 40px; padding: 0; border-radius: 9px; color: var(--habit-accent); font-size: 12px; font-weight: 700; }
+.habit-action[data-done="true"] { background: var(--habit-soft); }
+.habit-action:active, .habit-name:active { opacity: .65; }
+.habit-detail { box-sizing: border-box; position: fixed; inset: 0 0 0 auto; margin: auto 0; max-width: 100%; width: min(100%, 380px); height: 100%; max-height: 100%; padding: 20px; border: 0; border-radius: 18px 0 0 18px; color: var(--habit-text); background: var(--habit-card); overflow: auto; }
+.habit-detail::backdrop { background: #16142055; }
+.habit-detail .habit-dots button { min-height: 44px; gap: 4px; align-content: center; border-radius: 8px; font-size: 12px; }
+.habit-detail p, .habit-empty { font-size: 13px; color: var(--habit-muted); }
+.habit-board-link { display: inline-block; margin: 0 0 8px; color: inherit; font-size: 12px; text-underline-offset: 3px; }
+@media (min-width: 700px) {
+  .habit-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .habit-card { padding: 9px 14px; }
+  .habit-card .habit-dots { grid-template-rows: repeat(6, 16px); }
+}

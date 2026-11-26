@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Download, ExternalLink, Moon, Plus, Search, 
 import { EditableText } from './components/EditableText'
 import { ProjectDialog } from './components/ProjectDialog'
 import { ProjectGrid } from './components/ProjectGrid'
+import { HabitBoard } from './components/HabitBoard'
 import { DailyRandomPanel } from './components/DailyRandomPanel'
 import { NotDoingList } from './components/NotDoingList'
 import { GoalProgress, GoalProgressSettings } from './components/GoalProgress'
@@ -479,6 +480,7 @@ export default function App() {
         </div>
 
         <div id="checkin-projects" className="project-filter" aria-label="打卡筛选">{([['all', '全部'], ['unchecked', '今天未打卡'], ['archived', '已隐藏']] as const).map(([value, label]) => <button key={value} aria-pressed={projectFilter === value} onClick={() => setProjectFilter(value)}>{label}</button>)}</div>
+        <a className="habit-board-link" href="#habit-board">习惯看板 ↓</a>
         <ProjectGrid view={state.view} anchor={anchor} today={today} projects={visibleProjects} checkins={state.checkins} onToggle={toggleCheckin} onRename={renameProject} onMove={moveProject} onDelete={deleteProject} pinnedIds={state.projects.filter(p => state.preferences?.[`pin:${p.id}`]).map(p => p.id)} onPin={id => setPreference(`pin:${id}`, !state.preferences?.[`pin:${id}`])} onArchive={id => update(current => ({ ...current, projects: current.projects.map(p => p.id === id ? { ...p, archived: !p.archived } : p) }))} onReorder={reorderProject} />
         <CollapsibleSection id="stages" title="阶段与排期">
         <ProjectStageBoard
@@ -552,6 +554,7 @@ export default function App() {
           onCreate={suiteSync.createAndConnect}
           onDisconnect={suiteSync.disconnect}
         /> : null}
+        <HabitBoard projects={state.projects.filter(project => !project.archived).sort((a, b) => Number(Boolean(state.preferences?.[`pin:${b.id}`])) - Number(Boolean(state.preferences?.[`pin:${a.id}`])))} checkins={state.checkins} today={today} onToggle={toggleCheckin} />
       </section>
         </>
       )}

@@ -190,7 +190,8 @@ test('edits the title and creates a project', async () => {
   await user.click(screen.getByRole('button', { name: '新项目' }))
   await user.type(screen.getByRole('textbox', { name: '项目名称' }), '官网重构')
   await user.click(screen.getByRole('button', { name: '创建' }))
-  expect(screen.getByText('官网重构')).toBeVisible()
+  expect(screen.getByRole('button', { name: '官网重构' })).toBeVisible()
+  expect(screen.getByRole('button', { name: '查看 官网重构 的打卡详情' })).toBeVisible()
 })
 
 test('switches between daily weekly and monthly views', async () => {
